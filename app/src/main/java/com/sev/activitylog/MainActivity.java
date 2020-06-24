@@ -7,10 +7,12 @@ import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
 import android.text.Layout;
+import android.view.View;
 import android.widget.LinearLayout;
 
 import java.text.SimpleDateFormat;
 import java.time.Duration;
+import java.util.Comparator;
 import java.util.Date;
 import java.util.LinkedList;
 import java.util.Timer;
@@ -20,79 +22,89 @@ import java.util.concurrent.Future;
 
 public class MainActivity extends AppCompatActivity implements Observer {
 
-    private Future<LinkedList<RideOverview>> rideList;
-    private Timer modelTimer;
+    private LinkedList<RideOverview> rideList;
+    private StorageModel storage;
+    long lastSync = 0;
+    private OAuth auth;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
+        rideList = new LinkedList<RideOverview>();
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
-        OAuth auth = new OAuth();
-        auth.attach(this);
-        auth.setPreferences(getPreferences(MODE_PRIVATE));
-        Thread t = new Thread(auth);
-        t.start();
+        storage = new StorageModel(this);
+        storage.attach(this);
+        storage.getRides(0);
+ //       notify(new ObserverEventArgs(ObserverNotifications.RIDES_LOAD_NOTIFY, null, null)); //DEBUGGING - to force update from strava
     }
 
     @Override
     public void notify(ObserverEventArgs e) {
-        switch(e.getEventType()){
-            case OAUTH_NOTIFY:
-            {
-                OAuth auth = (OAuth)e.getEventArgs()[0];
-                if(auth.isAuthComplete()){
-                    auth.save(getPreferences(MODE_PRIVATE));
+        switch (e.getEventType()) {
+            case OAUTH_NOTIFY: {
+                auth = (OAuth) e.getEventArgs()[0];
+                if (auth.isAuthComplete()) {
                     StravaModel model = new StravaModel(auth);
-                    rideList = model.getRides();
-                    modelTimer = new Timer();
-                    modelTimer.scheduleAtFixedRate(new TimerTask() {
-                        @Override
-                        public void run() {
-                            new Handler(Looper.getMainLooper()).post(new Runnable(){ //Posts a runnable to be run on the main thread. Android only
-                                @Override
-                                public void run() {
-                                    populate();
-                                }
-                            });
-                        }
-                    }, 0, 500);
+                    model.attach(this);
+                    model.getRides(lastSync);
                 }
                 break;
 
             }
             case URI_NOTIFY:
-                startActivity((Intent)e.getEventArgs()[0]);
+                startActivity((Intent) e.getEventArgs()[0]);
                 break;
+            case RIDES_LOAD_NOTIFY: {
+                if(e.getEventArgs()[1] != null)
+                    lastSync = (long) e.getEventArgs()[1];
+                if(e.getEventArgs()[0] != null) {
+                    LinkedList<RideOverview> rides = (LinkedList<RideOverview>) e.getEventArgs()[0];
+                    rideList.addAll(rides);
+                }
+                if(System.currentTimeMillis() - lastSync > 1000 * 3600 * 24){ //data outdated, get new data from remote server
+                    OAuth auth = new OAuth(new AuthToken(getSharedPreferences("auth_token", MODE_PRIVATE)));
+                    auth.attach(this);
+                    Thread t = new Thread(auth);
+                    t.start();
+                }else {
+                    populate(rideList);
+                    storage.saveRides(rideList, lastSync);
+                }
+                break;
+            }
+            case ACTIVITY_SELECT_NOTIFY:
+            {
+                Intent detailedIntent = new Intent(this, DetailedActivityView.class);
+                detailedIntent.putExtra("activity_id", (long)e.getEventArgs()[0]);
+                if(auth != null)
+                    detailedIntent.putExtra("auth_token", auth.getAuthToken());
+                startActivity(detailedIntent);
+            }
         }
     }
-    public void populate(){
-        if(rideList != null && rideList.isDone()){
-            modelTimer.cancel();
-            try {
-                LinkedList<RideOverview> rides = rideList.get();
-                LinearLayout layout = (LinearLayout)findViewById(R.id.container);
-                for(RideOverview ride : rides){
-                    ActivityView view = new ActivityView(this);
-                    view.setTitle(ride.getName());
-                    Date d = ride.getDate();
-                    view.setSubtitle(new SimpleDateFormat("MMM dd yyyy hh:mm a").format(ride.getDate()));
-                    view.setInfoGrid(1, 3);
-                    view.setInfo("Distance", String.format("%.2f miles", ride.getDistance() * 0.000621371), 0, 0);
-                    view.setInfo("Moving Time", TimeSpan.fromSeconds((long)ride.getMovingTime()), 0, 1);
-                    view.setInfo("Elevation", String.format("%.2f ft", ride.getClimbed() * 3.28084), 0, 2);
-                    view.setLayoutParams(new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, (int)(getResources().getDisplayMetrics().density * 100)));
-                    float dp = getResources().getDisplayMetrics().density;
-                    view.setPadding(new PaddingBuilder().top(20).left(20).right(20).build());
-                    view.setFont(new ActivityViewFontBuilder().titleSize(18).subtitleSize(8).labelSize(10).infoSize(6).build());
-                    view.setInfoPadding(5);
-                    layout.addView(view);
 
-                }
-            } catch (ExecutionException e) {
-                e.printStackTrace();
-            } catch (InterruptedException e) {
-                e.printStackTrace();
-            }
-
+    public void populate(LinkedList<RideOverview> rides) {
+        LinearLayout layout = (LinearLayout) findViewById(R.id.container);
+        layout.removeView(findViewById(R.id.loadingBar));
+        layout.removeView(findViewById(R.id.loadingText));
+        for (RideOverview ride : rides) {
+            ActivityView view = new ActivityView(this);
+            view.setTitle(ride.getName());
+            Date d = ride.getDate();
+            view.setSubtitle(new SimpleDateFormat("MMM dd yyyy hh:mm a").format(ride.getDate()));
+            view.setInfoGrid(1, 4);
+            view.setInfo("Distance", String.format("%.2f miles", ride.getDistance() * 0.000621371), 0, 0);
+            view.setInfo("Time", TimeSpan.fromSeconds((long) ride.getMovingTime()), 0, 1);
+            view.setInfo("Elevation", String.format("%.2f ft", ride.getClimbed() * 3.28084), 0, 2);
+            view.setInfo("Type", ride.getActivityType(), 0, 3);
+            view.setId(ride.getId());
+            view.attach(this);
+            view.setLayoutParams(new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, (int) (getResources().getDisplayMetrics().density * 100)));
+            float dp = getResources().getDisplayMetrics().density;
+            view.setPadding(new PaddingBuilder().top(20).left(20).right(20).build());
+            view.setFont(new ActivityViewFontBuilder().titleSize(18).subtitleSize(8).labelSize(10).infoSize(6).build());
+            view.setInfoPadding(5);
+            layout.addView(view);
         }
     }
 }

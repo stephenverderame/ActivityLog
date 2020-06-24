@@ -5,6 +5,8 @@ import android.content.SharedPreferences;
 import android.net.Uri;
 import android.os.Handler;
 import android.os.Looper;
+import android.os.Parcel;
+import android.os.Parcelable;
 import android.util.Log;
 
 import org.json.JSONException;
@@ -26,39 +28,36 @@ import javax.net.ssl.HttpsURLConnection;
 
 import static android.content.Context.MODE_PRIVATE;
 
+/**
+ * Handles strava OAuth authentication
+ * Should be started in its own thread or other async object
+ * Sends the OAUTH_NOTIFY event when authentication is complete (either fail or success)
+ */
 public class OAuth implements Subject, Runnable {
     public static final int CLIENT_ID = 34668;
     public static final String CLIENT_SECRET = "0a01bd0adee247b04f2605a7d78ffc5f11a9ed93";
     private String authCode;
-    private String accessToken;
     private boolean authComplete;
     private LinkedList<Observer> observers;
-    private String refreshToken;
-    private long tokenExpiration; //seconds since epoch when token will expire
-    public OAuth(){
+    private AuthToken token;
+    public OAuth(AuthToken token){
         authComplete = false;
         observers = new LinkedList<Observer>();
+        this.token = token;
     }
-    public void setPreferences(SharedPreferences prefs){
-        tokenExpiration = prefs.getLong("token_expiration", 0);
-        accessToken = prefs.getString("access_token", null);
-        refreshToken = prefs.getString("refresh_token", null);
-    }
-    public void save(SharedPreferences prefs){
-        if(authComplete){
-            SharedPreferences.Editor editor = prefs.edit();
-            editor.putString("access_token", accessToken);
-            editor.putString("refresh_token", refreshToken);
-            editor.putLong("token_expiration", tokenExpiration);
-            editor.commit();
-        }
-    }
+
+    /**
+     * Step 1: Getting the auth code from the user. If no token is saved, prompts the user with the OAuth webpage
+     * When the user submits the page, the page redirects the HTTP request to the local host HTTP server
+     * This server collects the auth code from the user to be used to get an access token in step 2.
+     * @return success boolean
+     */
     public boolean authenticateStep1() {
         long secs = System.currentTimeMillis() / 1000;
-        if(secs < tokenExpiration - 3600){
+        if(secs < token.getExpiration() - 3600){
             authComplete = true;
             return true;
-        }else if(refreshToken != null){
+        }else if(token.getRefreshToken() != null){
             if(updateTokens()){
                 authComplete = true;
                 return true;
@@ -87,6 +86,12 @@ public class OAuth implements Subject, Runnable {
             return false;
         }
     }
+
+    /**
+     * Returns an HTML page from the local HTTP server to the user after an auth code has been successfully (or unsuccessfully) received
+     * @param out outputStream of socket
+     * @param success
+     */
     private void httpResponse(PrintWriter out, boolean success) {
         String response = "<html><h1>" + (success ? "Authentication Success" : "Authentication Failure") + "</h1><br><h5>You may now return to the app</h5></html>";
         StringBuilder build = new StringBuilder();
@@ -98,6 +103,14 @@ public class OAuth implements Subject, Runnable {
         out.flush();
         Log.d("AUTH 1", "Output");
     }
+
+    /**
+     * Step 2: uses auth code from step 1 to get an access token from strava.
+     * Sends a JSON HTTPS request to strava servers requesting an authorization token
+     * Token is encapsulated in an AuthToken
+     * @return success
+     * @see AuthToken
+     */
     public boolean authenticateStep2() {
         if(authComplete) return true;
         try {
@@ -133,9 +146,9 @@ public class OAuth implements Subject, Runnable {
                     }
                     try {
                         JSONObject obj = new JSONObject(builder.toString());
-                        accessToken = obj.getString("access_token");
-                        tokenExpiration = obj.getLong("expires_at");
-                        refreshToken = obj.getString("refresh_token");
+                        token.setAccessToken(obj.getString("access_token"));
+                        token.setExpiration(obj.getLong("expires_at"));
+                        token.setRefreshToken(obj.getString("refresh_token"));
                         authComplete = true;
                     } catch (JSONException e) {
                         e.printStackTrace();
@@ -154,7 +167,7 @@ public class OAuth implements Subject, Runnable {
     }
 
     public String getAuthCode(){ return authCode;}
-    public String getAccessToken() {return accessToken;}
+    public AuthToken getAuthToken() {return token;}
     public boolean isAuthComplete() {return authComplete;}
 
     @Override
@@ -173,7 +186,8 @@ public class OAuth implements Subject, Runnable {
     }
     private void sendMsgToEventHandlers(final boolean success){
         final OAuth param = this;
-        new Handler(Looper.getMainLooper()).post(new Runnable(){ //Posts a runnable to be run on the main thread. Android only
+        if(success) token.save();
+        new Handler(Looper.getMainLooper()).post(new Runnable(){
             @Override
             public void run() {
                 sendNotify(new ObserverEventArgs(ObserverNotifications.OAUTH_NOTIFY, param, success));
@@ -191,7 +205,7 @@ public class OAuth implements Subject, Runnable {
             URL url = new URL("https://www.strava.com/oauth/token");
             StringBuilder query = new StringBuilder();
             query.append("{\"client_id\": \"").append(CLIENT_ID).append("\",").append("\"client_secret\": \"").append(CLIENT_SECRET).append("\",")
-                    .append("\"refresh_token\": \"").append(refreshToken).append("\",").append("\"grant_type\": \"refresh_token\"}\r\n");
+                    .append("\"refresh_token\": \"").append(token.getRefreshToken()).append("\",").append("\"grant_type\": \"refresh_token\"}\r\n");
             String content = query.toString();
             HttpsURLConnection connection = (HttpsURLConnection)url.openConnection();
             connection.setDoOutput(true);
@@ -218,9 +232,9 @@ public class OAuth implements Subject, Runnable {
                         jsonBuilder.append(msg);
                     }
                     JSONObject json = new JSONObject(jsonBuilder.toString());
-                    accessToken = json.getString("access_token");
-                    tokenExpiration = json.getLong("expires_at");
-                    refreshToken = json.getString("refresh_token");
+                    token.setAccessToken(json.getString("access_token"));
+                    token.setExpiration(json.getLong("expires_at"));
+                    token.setRefreshToken(json.getString("refresh_token"));
                     authComplete = true;
                     success = true;
                 } catch (JSONException e) {
@@ -238,4 +252,67 @@ public class OAuth implements Subject, Runnable {
         return success;
     }
 
+}
+
+/*
+Parcelable interface is desgined to send objects from one activity to another
+ */
+class AuthToken implements Parcelable{
+    public static final String ACCESS_TOKEN_ID = "access_token", REFRESH_TOKEN_ID = "refresh_token", EXPIRATION_ID = "token_expiration";
+    private String accessToken, refreshToken;
+    private long expiration; //seconds since epoch when token will expire
+    private SharedPreferences prefs;
+    public AuthToken(SharedPreferences prefs){
+        expiration = 0;
+        this.prefs = prefs;
+        accessToken = prefs.getString(ACCESS_TOKEN_ID, null);
+        refreshToken = prefs.getString(REFRESH_TOKEN_ID, null);
+        expiration = prefs.getLong(EXPIRATION_ID, 0);
+    }
+
+    public String getAccessToken() {return accessToken;}
+    public String getRefreshToken() {return refreshToken;}
+    public long getExpiration() {return expiration;}
+    public void setAccessToken(String tk) {accessToken = tk;}
+    public void setRefreshToken(String tk) {refreshToken = tk;}
+    public void setExpiration(long exp) {expiration = exp;}
+    public boolean isValid() {return System.currentTimeMillis() / 1000 < expiration;}
+    public void save(){
+        if(prefs != null) {
+            SharedPreferences.Editor edit = prefs.edit();
+            edit.putString(ACCESS_TOKEN_ID, accessToken);
+            edit.putString(REFRESH_TOKEN_ID, refreshToken);
+            edit.putLong(EXPIRATION_ID, expiration);
+            edit.commit();
+        }
+    }
+
+
+    private AuthToken(Parcel in) {
+        accessToken = in.readString();
+        refreshToken = in.readString();
+        expiration = in.readLong();
+    }
+    @Override
+    public int describeContents() {
+        return 0;
+    }
+
+    @Override
+    public void writeToParcel(Parcel parcel, int i) {
+        parcel.writeString(accessToken);
+        parcel.writeString(refreshToken);
+        parcel.writeLong(expiration);
+    }
+    public static final Creator<AuthToken> CREATOR = new Creator<AuthToken>() {
+        @Override
+        public AuthToken createFromParcel(Parcel in) {
+            return new AuthToken(in);
+        }
+
+        @Override
+        public AuthToken[] newArray(int size) {
+            return new AuthToken[size];
+        }
+    };
 }

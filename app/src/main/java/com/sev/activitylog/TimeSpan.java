@@ -1,7 +1,11 @@
 package com.sev.activitylog;
 
 public class TimeSpan {
-    static String fromSeconds(long seconds){
+    /**
+     * @param seconds
+     * @return string in HH:mm:ss format
+     */
+    public static String fromSeconds(long seconds){
         StringBuilder time = new StringBuilder();
         float leftoverTime = seconds;
         if(seconds >= 3600){

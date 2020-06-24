@@ -11,15 +11,19 @@ import android.graphics.drawable.Drawable;
 import android.text.TextPaint;
 import android.util.AttributeSet;
 import android.util.TypedValue;
+import android.view.MotionEvent;
 import android.view.View;
+
+import java.util.LinkedList;
 
 /**
  * TODO: document your custom view class.
  */
-public class ActivityView extends View {
+public class ActivityView extends View implements Subject {
     private String title, subtitle;
     private StringPair[][] info;
     private int infoPadding = 3;
+    private long id;
 
     private TextPaint textPaint;
     private Paint paint;
@@ -30,6 +34,8 @@ public class ActivityView extends View {
     private Bitmap bmp;
     private Rect bitmapDimensions;
     private float dp2pxFactor;
+
+    private LinkedList<Observer> observers;
 
     private ActivityViewFont fnt;
 
@@ -76,19 +82,21 @@ public class ActivityView extends View {
 
         pl = getPaddingLeft();
         pr = getPaddingRight();
-        pb = 0;getPaddingBottom();
-        pt = 0;getPaddingTop();
+        pb = getPaddingBottom();
+        pt = getPaddingTop();
         dp2pxFactor = getResources().getDisplayMetrics().density;
 
         paint = new Paint();
 
-
-
-
-        // Update TextPaint and text measurements from attributes
+        setOnClickListener(new OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                clickEvent(view);
+            }
+        });
+        observers = new LinkedList<>();
     }
-
-
+    public void setId(long id) {this.id = id;}
     @Override
     protected void onDraw(Canvas canvas) {
         //canvas is translated to child position
@@ -103,19 +111,21 @@ public class ActivityView extends View {
         bg.draw(canvas);
         textPaint.setTextSize(fnt.titleSize * dp2pxFactor);
         textPaint.setColor(Color.BLACK);
-        float px = TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 8, getResources().getDisplayMetrics());
-        Rect titleBounds = new Rect();
-        Rect subtitleBounds = new Rect();
+        float space = TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 8, getResources().getDisplayMetrics());
         final Paint.FontMetrics fm = textPaint.getFontMetrics();
         final float titlelineHeight = fm.bottom - fm.top + fm.leading;
-        textPaint.getTextBounds(title, 0, title.length(), titleBounds);
-        canvas.drawText(title, pl + px, pt + px + titleBounds.height(), textPaint);
+        if(title != null) {
+            Rect titleBounds = new Rect();
+            textPaint.getTextBounds(title, 0, title.length(), titleBounds);
+            canvas.drawText(title, pl + space, pt + space + titleBounds.height(), textPaint);
+        }
         if(subtitle != null) {
+            Rect subtitleBounds = new Rect();
             textPaint.setTextSize(fnt.subtitleSize * dp2pxFactor);
             textPaint.setColor(Color.GRAY);
             float subLen = textPaint.measureText(subtitle);
             textPaint.getTextBounds(subtitle, 0, subtitle.length(), subtitleBounds);
-            canvas.drawText(subtitle, w - pr - px - subLen, pt + px + subtitleBounds.height(), textPaint);
+            canvas.drawText(subtitle, w - pr - space - subLen, pt + space + subtitleBounds.height(), textPaint);
         }
         if(info != null) {
             for (int r = 0; r < info.length; ++r) {
@@ -123,31 +133,31 @@ public class ActivityView extends View {
                     if(info[r][c] != null) {
                         textPaint.setTextSize(fnt.labelSize * dp2pxFactor);
                         textPaint.setColor(Color.BLACK);
-                        if (textPaint.measureText(info[r][c].getKey()) > gridX) {
+ /*                       if (textPaint.measureText(info[r][c].getKey()) > gridX) {
                             float lengthPerLetter = (float) textPaint.measureText(info[r][c].getKey()) / info[r][c].getKey().length();
                             float letters = (float) gridX / lengthPerLetter;
                             if (info[r][c].getKey().length() > (int) letters)
                                 info[r][c].setKey(info[r][c].getKey().substring(0, (int) letters));
-                        }
-                        canvas.drawText(info[r][c].getKey(), pl + px + gridX * c, pt + px + titlelineHeight + gridY * r + infoPadding * dp2pxFactor, textPaint);
+                        }*/
+                        canvas.drawText(info[r][c].getKey(), pl + space + gridX * c, pt + space + titlelineHeight + gridY * r + infoPadding * dp2pxFactor, textPaint);
                         Rect keyBounds = new Rect();
                         textPaint.getTextBounds(info[r][c].getKey(), 0, info[r][c].getKey().length(), keyBounds);
                         textPaint.setTextSize(fnt.infoSize * dp2pxFactor);
                         textPaint.setColor(Color.GRAY);
-                        if (textPaint.measureText(info[r][c].getValue()) > gridX) {
+ /*                       if (textPaint.measureText(info[r][c].getValue()) > gridX) {
                             float lengthPerLetter = (float) textPaint.measureText(info[r][c].getValue()) / info[r][c].getValue().length();
                             float letters = (float) gridX / lengthPerLetter;
                             if (info[r][c].getValue().length() > (int) letters)
                                 info[r][c].setValue(info[r][c].getValue().substring(0, (int) letters));
-                        }
-                        canvas.drawText(info[r][c].getValue(), pl + px + gridX * c, pt + px + titlelineHeight + keyBounds.height() + gridY * r + infoPadding * dp2pxFactor, textPaint);
+                        }*/
+                        canvas.drawText(info[r][c].getValue(), pl + space + gridX * c, pt + space + titlelineHeight + keyBounds.height() + gridY * r + infoPadding * dp2pxFactor, textPaint);
                     }
                 }
             }
         }
         if(bmp != null){
-            Rect dst = new Rect((int)(bitmapDimensions.left * gridX + pl + px), (int)(bitmapDimensions.top * gridY + pt + titleBounds.height()),
-                    (int)(bitmapDimensions.right * gridX + pl + px), (int)(bitmapDimensions.bottom * gridY + pt + titleBounds.height()));
+            Rect dst = new Rect((int)(bitmapDimensions.left * gridX + pl + space), (int)(bitmapDimensions.top * gridY + pt + titlelineHeight),
+                    (int)(bitmapDimensions.right * gridX + pl + space), (int)(bitmapDimensions.bottom * gridY + pt + titlelineHeight));
             canvas.drawBitmap(bmp, new Rect(0, 0, bmp.getWidth(), bmp.getHeight()), dst, null);
             dst.left -= dp2pxFactor;
             dst.right += dp2pxFactor;
@@ -221,6 +231,50 @@ public class ActivityView extends View {
     public void setInfoPadding(int padding) {
         this.infoPadding = padding;
     }
+    private void clickEvent(View v) {
+        ObserverEventArgs a = new ObserverEventArgs(ObserverNotifications.ACTIVITY_SELECT_NOTIFY, id, v);
+        for(Observer o : observers)
+            o.notify(a);
+    }
 
+    @Override
+    public void attach(Observer observer) {
+        observers.add(observer);
+    }
+
+    @Override
+    public void detach(Observer observer) {
+        observers.remove(observer);
+    }
+}
+
+class ActivityViewFont {
+    public float titleSize = 24, subtitleSize = 14, labelSize = 18, infoSize = 12; //units are dps
+}
+
+class ActivityViewFontBuilder {
+    private ActivityViewFont font; //units are dps
+    ActivityViewFontBuilder(){
+        font = new ActivityViewFont();
+    }
+    ActivityViewFontBuilder titleSize(float s){
+        font.titleSize = s;
+        return this;
+    }
+    ActivityViewFontBuilder subtitleSize(float s){
+        font.subtitleSize = s;
+        return this;
+    }
+    ActivityViewFontBuilder labelSize(float s){
+        font.labelSize = s;
+        return this;
+    }
+    ActivityViewFontBuilder infoSize(float s){
+        font.infoSize = s;
+        return this;
+    }
+    ActivityViewFont build(){
+        return font;
+    }
 }
 

@@ -1,5 +1,9 @@
 package com.sev.activitylog;
 
+/**
+ * Workaround for inability to have arrays of generics
+ * @see ActivityView
+ */
 public class StringPair {
     private String key, value;
     public StringPair(String key, String value){
