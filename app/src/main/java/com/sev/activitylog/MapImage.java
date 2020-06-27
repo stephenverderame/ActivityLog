@@ -5,6 +5,7 @@ import android.graphics.BitmapFactory;
 import android.graphics.Canvas;
 import android.graphics.Paint;
 import android.graphics.Rect;
+import android.util.Log;
 
 import java.io.BufferedReader;
 import java.io.ByteArrayInputStream;
@@ -19,25 +20,74 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 import javax.net.ssl.HttpsURLConnection;
-
-public class MapImage {
-    protected Bitmap img;
+abstract class Map{
     protected MapBounds mapBounds;
-    public void draw(Canvas canvas, Rect destination, Paint paint){
-        if(img != null)
+    protected float aspectRatio;
+    public abstract void draw(Canvas canvas, Rect destination, Paint paint);
+    public Rect calcPreservingDestination(Rect destination){
+        int newWidth = 0, newHeight = 0;
+        if (aspectRatio > 1) { //width is greater, so use that as a basis for scaling
+            newWidth = destination.right - destination.left;
+            newHeight = Math.round(newWidth / aspectRatio);
+        } else {
+            newHeight = destination.bottom - destination.top;
+            newWidth = Math.round(newHeight * aspectRatio);
+        }
+ //       if(newWidth < destination.right - destination.left) {
+            destination.right = destination.left + newWidth;
+            destination.bottom = destination.top + newHeight;
+//        }
+        return destination;
+    }
+    public void setAspectRatio(float r) {aspectRatio = r;}
+}
+public class MapImage extends Map {
+    protected Bitmap img;
+    public void draw(Canvas canvas, Rect destination, Paint paint) {
+        if(img != null) {
             canvas.drawBitmap(img, new Rect(0, 0, img.getWidth(), img.getHeight()), destination, paint);
+        }
     }
     public void setMapBounds(MapBounds b){
         mapBounds = b;
     }
+    public void setImg(Bitmap map){
+        img = map;
+        aspectRatio = (float)img.getWidth() / img.getHeight();
+    }
+
 }
 class MapBounds{
     public double left = 180, right = -180, top = -90, bottom = 90;
 }
-abstract class MapDecorator extends MapImage {
-    protected MapImage component;
-    void decorate(MapImage layer){
+abstract class MapDecorator extends Map {
+    protected Map component;
+    void decorate(Map layer){
+
         component = layer;
+        aspectRatio = component.aspectRatio;
+        mapBounds = component.mapBounds;
+    }
+}
+class RouteDecorator extends MapDecorator {
+    private ArrayList<Pos> route;
+    @Override
+    public void draw(Canvas canvas, Rect destination, Paint paint) {
+        component.draw(canvas, destination, paint);
+        float lonPerX = Math.abs((float)(mapBounds.right - mapBounds.left) / (destination.right - destination.left));
+        float latPerY = Math.abs((float)(mapBounds.bottom - mapBounds.top) / (destination.top - destination.bottom));
+        float[] pts = new float[route.size() * 2];
+        for(int i = 0; i < route.size(); ++i){
+            pts[i * 2] = destination.left + (float)(Math.abs(route.get(i).lon - mapBounds.left)) / lonPerX;
+            pts[i * 2 + 1] = destination.top + (float)(Math.abs(mapBounds.top - route.get(i).lat)) / latPerY;
+        }
+        for(int i = 0; i < route.size() - 1; ++i){
+            canvas.drawLine(pts[i * 2], pts[i * 2 + 1], pts[(i + 1) * 2], pts[(i + 1) * 2 + 1], paint);
+        }
+
+    }
+    public void setRoute(ArrayList<Pos> route){
+        this.route = route;
     }
 }
 abstract class MapFactory implements Subject{
@@ -48,7 +98,7 @@ abstract class MapFactory implements Subject{
         executor = Executors.newSingleThreadExecutor();
     }
     protected abstract MapImage make_(MapBounds bounds);
-    public MapBounds boundsFromRoute(ArrayList<Pos> route){
+    public static MapBounds boundsFromRoute(ArrayList<Pos> route){
         MapBounds bounds = new MapBounds();
         for(Pos p : route){
             if(p.lon < bounds.left) bounds.left = p.lon;
@@ -82,13 +132,18 @@ class RoadMapFactory extends MapFactory {
 
     private static final String API_ID = "eue3ZmJeRloe49N4jGod";
     private static final String API_CODE = "7GI8j3yr8Mn3vr_RvnHOLA";
+    public RoadMapFactory(){
+        super();
+    }
     @Override
     protected MapImage make_(MapBounds bounds) {
         MapImage map = new MapImage();
         StringBuilder urlBuilder = new StringBuilder();
         urlBuilder.append("https://image.maps.api.here.com/mia/1.6/mapview").append("?app_id=").append(API_ID)
                 .append("&app_code=").append(API_CODE).append("&bbox=").append(bounds.top).append(',')
-                .append(bounds.left).append(',').append(bounds.right).append(',').append(bounds.bottom);
+                .append(bounds.left).append(',').append(bounds.top).append(',').append(bounds.right).append(',')
+                .append(bounds.bottom).append(',').append(bounds.left).append(',').append(bounds.bottom).append(',')
+                .append(bounds.right);
         try {
             URL url = new URL(urlBuilder.toString());
             HttpsURLConnection con = (HttpsURLConnection)url.openConnection();
@@ -98,11 +153,18 @@ class RoadMapFactory extends MapFactory {
             con.setRequestProperty("Accept", "image/*");
             con.setRequestProperty("Host", "image.maps.api.here.com");
             con.connect();
-            map.img = BitmapFactory.decodeStream(con.getInputStream());
+            if(con.getResponseCode() == 200) {
+                Log.d("MAP", "Got image from HERE");
+                map.setImg(BitmapFactory.decodeStream(con.getInputStream()));
+                map.setMapBounds(bounds);
+            }
+            else{
+                Log.e("MAP", "Failed from here. Error: " + con.getResponseMessage());
+            }
         } catch (MalformedURLException e) {
-            e.printStackTrace();
+            Log.e("MAP", e.toString());
         } catch (IOException e) {
-            e.printStackTrace();
+            Log.e("MAP", e.toString());
         }
         return map;
     }

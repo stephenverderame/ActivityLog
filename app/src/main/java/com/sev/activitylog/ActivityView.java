@@ -31,9 +31,10 @@ public class ActivityView extends View implements Subject {
     private int x, y, w, h;
     private int pl, pr, pb, pt;
     private float gridX, gridY;
-    private Bitmap bmp;
-    private Rect bitmapDimensions;
     private float dp2pxFactor;
+
+    private Map img;
+    private Rect mapDimensions;
 
     private LinkedList<Observer> observers;
 
@@ -87,6 +88,8 @@ public class ActivityView extends View implements Subject {
         dp2pxFactor = getResources().getDisplayMetrics().density;
 
         paint = new Paint();
+        paint.setColor(Color.argb(255, 255, 69, 0));
+        paint.setStrokeWidth(2);
 
         setOnClickListener(new OnClickListener() {
             @Override
@@ -103,8 +106,6 @@ public class ActivityView extends View implements Subject {
         //(0, 0) is this views origin
         super.onDraw(canvas);
 
-        // TODO: consider storing these as member variables to reduce
-        // allocations per draw cycle.
 
         Drawable bg = getResources().getDrawable(R.drawable.round_rect_shadow, null);
         bg.setBounds(pl, pt, w - pr, h); //left top right bottom
@@ -125,7 +126,7 @@ public class ActivityView extends View implements Subject {
             textPaint.setColor(Color.GRAY);
             float subLen = textPaint.measureText(subtitle);
             textPaint.getTextBounds(subtitle, 0, subtitle.length(), subtitleBounds);
-            canvas.drawText(subtitle, w - pr - space - subLen, pt + space + subtitleBounds.height(), textPaint);
+            canvas.drawText(subtitle, w - pr - space * 2 - subLen, pt + space, textPaint);
         }
         if(info != null) {
             for (int r = 0; r < info.length; ++r) {
@@ -155,18 +156,11 @@ public class ActivityView extends View implements Subject {
                 }
             }
         }
-        if(bmp != null){
-            Rect dst = new Rect((int)(bitmapDimensions.left * gridX + pl + space), (int)(bitmapDimensions.top * gridY + pt + titlelineHeight),
-                    (int)(bitmapDimensions.right * gridX + pl + space), (int)(bitmapDimensions.bottom * gridY + pt + titlelineHeight));
-            canvas.drawBitmap(bmp, new Rect(0, 0, bmp.getWidth(), bmp.getHeight()), dst, null);
-            dst.left -= dp2pxFactor;
-            dst.right += dp2pxFactor;
-            dst.top -= dp2pxFactor;
-            dst.bottom += dp2pxFactor;
-            paint.setStyle(Paint.Style.STROKE);
-            paint.setColor(Color.BLACK);
-            paint.setStrokeWidth(2);
-            canvas.drawRect(dst, paint);
+        if(img != null){
+            Rect dst = new Rect((int)(mapDimensions.left * gridX + pl + space), (int)(mapDimensions.top * gridY + pt + titlelineHeight),
+                    (int)(mapDimensions.right * gridX + pl + space), (int)(mapDimensions.bottom * gridY + pt + titlelineHeight)); //left top right bottom
+            img.draw(canvas, img.calcPreservingDestination(dst), paint);
+
         }
 
 
@@ -217,9 +211,9 @@ public class ActivityView extends View implements Subject {
             return info[row][col];
         else return null;
     }
-    public void setBitmap(Bitmap bm, int row, int col, int rowspan, int colspan){
-        this.bmp = bm;
-        bitmapDimensions = new Rect(col, row, col + colspan, row + rowspan);
+    public void setMap(Map map, int row, int col, int rowspan, int colspan){
+        img = map;
+        mapDimensions = new Rect(col, row, col + colspan, row + rowspan);
     }
     public void setSubtitle(String subtitle) {this.subtitle = subtitle;}
     public void setPadding(Padding padding) {

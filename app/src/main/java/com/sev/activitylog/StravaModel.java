@@ -39,13 +39,15 @@ public class StravaModel extends RideModel {
             public LinkedList<RideOverview> call() {
                 if (auth.isAuthComplete()) {
                     Log.d("OVERVIEWS", "Auth Complete");
-                    LinkedList<RideOverview> rideOverviews = new LinkedList<RideOverview>();
                     boolean success = false;
+ //                   LinkedList<RideOverview> rideOverviews = new LinkedList<RideOverview>();
                     int pageNum = 1;
                     int retries = 0;
                     do {
                         try {
-                            URL url = new URL("https://www.strava.com/api/v3/athlete/activities?after=" + (startDate / 1000) + "&per_page=100" + "&page=" + pageNum);
+                            LinkedList<RideOverview> buffer = new LinkedList<RideOverview>();
+                            String after = startDate == 0 ? "" : ("after=" + (startDate / 1000)); //strava sends data most recent first when not using the after tag, otherwise it goes ascending order from that date
+                            URL url = new URL("https://www.strava.com/api/v3/athlete/activities?" + after + "&per_page=30" + "&page=" + pageNum);
                             HttpsURLConnection con = (HttpsURLConnection) url.openConnection();
                             con.setDoInput(true);
                             con.setDoOutput(false);
@@ -69,10 +71,15 @@ public class StravaModel extends RideModel {
                                         JSONObject ride = ridesJson.getJSONObject(i);
                                         RideOverview r = new RideOverview(ride);
 //                                    Log.d("OVERVIEWS", "Read " + r.getName());
-                                        rideOverviews.push(r); //keeps everything in most recent order
+                                        if(startDate != 0 ) buffer.push(r);
+                                        else buffer.add(r);
+ //                                       rideOverviews.add(r);
                                     }
                                     if(ridesJson.length() == 0) success = false; //if no more rides
-                                    else success = true;
+                                    else {
+                                        success = true;
+                                        ObserverHelper.sendToObservers(observers, new ObserverEventArgs(ObserverNotifications.RIDES_LOAD_PARTIAL_NOTIFY, buffer, startDate != 0));
+                                    }
                                 }
                             }else success = false;
                         } catch (MalformedURLException e) {
@@ -92,8 +99,8 @@ public class StravaModel extends RideModel {
                         ++pageNum;
 
                     }while(success);
-                    ObserverHelper.sendToObservers(observers, new ObserverEventArgs(ObserverNotifications.RIDES_LOAD_NOTIFY, rideOverviews, System.currentTimeMillis()));
-                    return rideOverviews;
+                    ObserverHelper.sendToObservers(observers, new ObserverEventArgs(ObserverNotifications.RIDES_LOAD_NOTIFY, null, System.currentTimeMillis()));
+                    return null;
                 }
                 return null;
             }

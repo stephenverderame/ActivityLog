@@ -1,6 +1,8 @@
 package com.sev.activitylog;
 
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.recyclerview.widget.LinearLayoutManager;
+import androidx.recyclerview.widget.RecyclerView;
 
 import android.content.Intent;
 import android.os.Bundle;
@@ -26,6 +28,8 @@ public class MainActivity extends AppCompatActivity implements Observer {
     private StorageModel storage;
     long lastSync = 0;
     private OAuth auth;
+    private RecyclerView recyclerView;
+    private CardListAdapter recyclerViewAdapter;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -36,6 +40,12 @@ public class MainActivity extends AppCompatActivity implements Observer {
         storage.attach(this);
         storage.getRides(0);
  //       notify(new ObserverEventArgs(ObserverNotifications.RIDES_LOAD_NOTIFY, null, null)); //DEBUGGING - to force update from strava
+
+        recyclerView = (RecyclerView)findViewById(R.id.recycle);
+        recyclerView.setLayoutManager(new LinearLayoutManager(this));
+        recyclerViewAdapter = new CardListAdapter(rideList);
+        recyclerViewAdapter.attach(this);
+        recyclerView.setAdapter(recyclerViewAdapter);
     }
 
     @Override
@@ -67,8 +77,30 @@ public class MainActivity extends AppCompatActivity implements Observer {
                     Thread t = new Thread(auth);
                     t.start();
                 }else {
-                    populate(rideList);
+//                    populate(rideList);
                     storage.saveRides(rideList, lastSync);
+                }
+                break;
+            }
+            case RIDES_LOAD_PARTIAL_NOTIFY:
+            {
+                if(findViewById(R.id.loadingBar) != null){
+                    LinearLayout layout = (LinearLayout) findViewById(R.id.container);
+                    layout.removeView(findViewById(R.id.loadingBar));
+                    layout.removeView(findViewById(R.id.loadingText));
+                }
+                if(e.getEventArgs()[0] != null){
+                    LinkedList<RideOverview> newRides = (LinkedList<RideOverview>)e.getEventArgs()[0];
+                    boolean insert = (boolean)e.getEventArgs()[1];
+                    if(insert) {
+                        rideList.addAll(0, newRides);
+                        recyclerViewAdapter.notifyItemRangeInserted(0, newRides.size());
+                        recyclerView.scrollToPosition(0);
+                    }
+                    else{
+                        rideList.addAll(newRides);
+                        recyclerViewAdapter.notifyItemRangeChanged(rideList.size() - newRides.size(), newRides.size());
+                    }
                 }
                 break;
             }
@@ -79,6 +111,7 @@ public class MainActivity extends AppCompatActivity implements Observer {
                 if(auth != null)
                     detailedIntent.putExtra("auth_token", auth.getAuthToken());
                 startActivity(detailedIntent);
+                break;
             }
         }
     }
@@ -87,7 +120,7 @@ public class MainActivity extends AppCompatActivity implements Observer {
         LinearLayout layout = (LinearLayout) findViewById(R.id.container);
         layout.removeView(findViewById(R.id.loadingBar));
         layout.removeView(findViewById(R.id.loadingText));
-        for (RideOverview ride : rides) {
+ /*       for (RideOverview ride : rides) {
             ActivityView view = new ActivityView(this);
             view.setTitle(ride.getName());
             Date d = ride.getDate();
@@ -105,6 +138,9 @@ public class MainActivity extends AppCompatActivity implements Observer {
             view.setFont(new ActivityViewFontBuilder().titleSize(18).subtitleSize(8).labelSize(10).infoSize(6).build());
             view.setInfoPadding(5);
             layout.addView(view);
-        }
+        }*/
+        CardListAdapter adapter = new CardListAdapter(rides);
+        adapter.attach(this);
+        recyclerView.setAdapter(adapter);
     }
 }

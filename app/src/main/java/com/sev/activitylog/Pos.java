@@ -12,6 +12,7 @@ public class Pos {
     public static ArrayList<Pos> decodePolyline(String polyline, int precision) {
         ArrayList<Pos> points = new ArrayList<Pos>();
         Intptr i = new Intptr();
+        i.value = 0;
         int lat = 0, lon = 0;
         while(i.value < polyline.length()){
             int latdiff = decodeHelper(polyline, i);
@@ -30,7 +31,7 @@ public class Pos {
             bit = (byte)(polyline.charAt(index.value++) - 63);
             result |= (bit & 0x1f) << shift;
             shift += 5;
-        } while(bit > 0x20);
+        } while(bit >= 0x20);
         return ((result & 1) == 1) ? ~(result >> 1) : (result >> 1);
     }
 }

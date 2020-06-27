@@ -18,12 +18,14 @@ public class StorageModel extends RideModel {
     /*
     rides.db FileFormat:
         long - epochTime of most recent activity
-        LinkedList<RideOverview> - list of activities
+        int - num of lists
+        List<LinkedList<RideOverview>> - list of activities
      */
     private Context context;
     private ExecutorService executor;
     private LinkedList<Observer> observers;
     private static final String DATA_FILE = "rides.db";
+    private static final int CHUNK_SIZE = 100;
     public StorageModel(Context ctx){
         context = ctx;
         executor = Executors.newSingleThreadExecutor();
@@ -34,11 +36,16 @@ public class StorageModel extends RideModel {
         return executor.submit(new Callable<LinkedList<RideOverview>>() {
             @Override
             public LinkedList<RideOverview> call() {
-                LinkedList<RideOverview> rides = null;
+                LinkedList<RideOverview> rides = new LinkedList<RideOverview>();
                 long lastSyncTime = 0;
                 try(ObjectInputStream input = new ObjectInputStream(context.openFileInput(DATA_FILE))){
                     lastSyncTime = input.readLong();
-                    rides = (LinkedList<RideOverview>)input.readObject();
+                    int lists = input.readInt();
+                    for(int i = 0; i < lists; ++i){
+                        LinkedList<RideOverview> ride = (LinkedList<RideOverview>)input.readObject();
+                        ObserverHelper.sendToObservers(observers, new ObserverEventArgs(ObserverNotifications.RIDES_LOAD_PARTIAL_NOTIFY, ride, false));
+                        rides.addAll(ride);
+                    }
                 } catch (FileNotFoundException e) {
                     e.printStackTrace();
                 } catch (IOException e) {
@@ -46,7 +53,7 @@ public class StorageModel extends RideModel {
                 } catch (ClassNotFoundException e) {
                     e.printStackTrace();
                 }
-                if(startDate != 0) {
+                if(startDate != 0 && rides != null) {
                     for (int i = 0; i < rides.size(); ) {
                         if (rides.get(i).getDate().before(new Date(startDate))) {
                             rides.remove(i);
@@ -68,7 +75,14 @@ public class StorageModel extends RideModel {
     public void saveRides(LinkedList<RideOverview> rides, long syncTime){
         try(ObjectOutputStream output = new ObjectOutputStream(context.openFileOutput(DATA_FILE, Context.MODE_PRIVATE))){
             output.writeLong(syncTime);
-            output.writeObject(rides);
+            int lists = rides.size() / CHUNK_SIZE + 1;
+            output.writeInt(lists);
+            for(int i = 0; i < lists; ++i){
+                LinkedList<RideOverview> list = new LinkedList<>();
+                for(int j = i * CHUNK_SIZE; j < Math.min((i + 1) * CHUNK_SIZE, rides.size()); ++j)
+                    list.add(rides.get(j));
+                output.writeObject(list);
+            }
         } catch (FileNotFoundException e) {
             e.printStackTrace();
         } catch (IOException e) {

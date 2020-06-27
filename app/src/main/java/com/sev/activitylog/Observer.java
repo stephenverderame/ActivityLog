@@ -30,7 +30,8 @@ enum ObserverNotifications {
     RIDES_LOAD_NOTIFY, //args {LinkedList<RideOverview>, long lastActivityTime}
     RIDE_DETAILS_NOTIFY, //args {DetailedRide}
     MAP_LOAD_NOTIFY, //args {MapImage}
-    ACTIVITY_SELECT_NOTIFY //args {long id, View clickedView}
+    ACTIVITY_SELECT_NOTIFY, //args {long id, View clickedView}
+    RIDES_LOAD_PARTIAL_NOTIFY //args {LinkedList<RideOverview>, bool insertOrAdd (true for insert)}
 }
 interface Subject {
     public void attach(Observer observer);

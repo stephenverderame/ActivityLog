@@ -5,13 +5,6 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     tools:context=".MainActivity">
-
-    <ScrollView
-        android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        tools:layout_editor_absoluteX="0dp"
-        tools:layout_editor_absoluteY="0dp">
-
         <LinearLayout
             android:id="@+id/container"
             android:layout_width="match_parent"
@@ -20,7 +13,7 @@
 
             <ProgressBar
                 android:layout_width="match_parent"
-                android:layout_height="match_parent"
+                android:layout_height="wrap_content"
                 android:id="@+id/loadingBar"/>
             <TextView
                 android:layout_width="match_parent"
@@ -29,8 +22,14 @@
                 android:gravity="center"
                 android:text="Loading..."
                 android:id="@+id/loadingText"/>
+            <androidx.recyclerview.widget.RecyclerView
+                android:scrollbars="vertical"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:id="@+id/recycle">
+
+            </androidx.recyclerview.widget.RecyclerView>
 
         </LinearLayout>
-    </ScrollView>
 
 </androidx.constraintlayout.widget.ConstraintLayout>

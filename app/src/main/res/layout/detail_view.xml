@@ -4,15 +4,23 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical"
+    android:layout_marginTop="5dp"
     tools:context=".DetailedActivityView">
 
     <com.sev.activitylog.ActivityView
         android:layout_width="match_parent"
-        android:layout_height="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_weight=".50"
         android:paddingLeft="20dp"
         android:paddingTop="20dp"
         android:paddingRight="20dp"
         android:paddingBottom="20dp"
         android:id="@+id/detailView"/>
+    <ImageView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_weight=".50"
+        android:background="@drawable/round_rect_shadow"
+        android:id="@+id/mapView"/>
 
 </LinearLayout>
