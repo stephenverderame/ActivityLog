@@ -1,0 +1,60 @@
+package com.sev.activitylog;
+
+import android.content.Context;
+import android.opengl.GLES30;
+import android.util.Log;
+
+public class GLShader implements Destructor {
+    private int program, vertex, fragment, geometry;
+    public GLShader(Context ctx, int vertexResourceId, int fragmentResourceId) {
+        String vertexCode = ctx.getString(vertexResourceId);
+        String fragmentCode = ctx.getString(fragmentResourceId);
+        vertex = GLES30.glCreateShader(GLES30.GL_VERTEX_SHADER);
+        GLES30.glShaderSource(vertex, vertexCode);
+        GLES30.glCompileShader(vertex);
+        int[] success = new int[1];
+        GLES30.glGetShaderiv(vertex, GLES30.GL_COMPILE_STATUS, success, 0);
+        if(success[0] == 0){
+            Log.e("Vertex Shader", GLES30.glGetShaderInfoLog(vertex));
+        }
+        fragment = GLES30.glCreateShader(GLES30.GL_FRAGMENT_SHADER);
+        GLES30.glShaderSource(fragment, fragmentCode);
+        GLES30.glCompileShader(fragment);
+        GLES30.glGetShaderiv(fragment, GLES30.GL_COMPILE_STATUS, success, 0);
+        if(success[0] == 0){
+            Log.e("Fragment Shader", GLES30.glGetShaderInfoLog(fragment));
+        }
+        program = GLES30.glCreateProgram();
+        GLES30.glAttachShader(program, vertex);
+        GLES30.glAttachShader(program, fragment);
+        GLES30.glLinkProgram(program);
+        GLES30.glGetProgramiv(program, GLES30.GL_LINK_STATUS, success, 0);
+        if(success[0] == 0)
+            Log.e("Shader Link", GLES30.glGetProgramInfoLog(program));
+    }
+    public void use(){
+        GLES30.glUseProgram(program);
+    }
+    public void setMat4(String name, float[] matrix){
+        GLES30.glUniformMatrix4fv(GLES30.glGetUniformLocation(program, name), 1, false, matrix, 0);
+    }
+    public void setInt(String name, int val){
+        GLES30.glUniform1i(GLES30.glGetUniformLocation(program, name), val);
+    }
+    public int getAttribute(String name){
+        return GLES30.glGetAttribLocation(program, name);
+    }
+    public void setVec4(String name, float x, float y, float z, float w){
+        GLES30.glUniform4f(GLES30.glGetUniformLocation(program, name), x, y, z, w);
+    }
+    public void setBool(String name, boolean val){
+        GLES30.glUniform1i(GLES30.glGetUniformLocation(program, name), val ? 1 : 0);
+    }
+
+    @Override
+    public void destructor() {
+        GLES30.glDeleteShader(vertex);
+        GLES30.glDeleteShader(fragment);
+        GLES30.glDeleteProgram(program);
+    }
+}

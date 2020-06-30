@@ -11,6 +11,8 @@ import java.text.SimpleDateFormat;
 import java.util.Date;
 
 public class RideOverview implements Serializable {
+    public static transient final double METERS_MILES_CONVERSION = 0.000621371;
+    public static transient final double METERS_FEET_CONVERSION = 3.28084;
     private double distance, climbed;
     private int time, totalTime;
     private String name;

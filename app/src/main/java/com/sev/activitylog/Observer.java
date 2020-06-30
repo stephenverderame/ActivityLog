@@ -27,11 +27,12 @@ class ObserverEventArgs {
 enum ObserverNotifications {
     URI_NOTIFY, //args {Intent}
     OAUTH_NOTIFY, //args {OAuth, Boolean}
-    RIDES_LOAD_NOTIFY, //args {LinkedList<RideOverview>, long lastActivityTime}
+    RIDES_LOAD_NOTIFY, //args {long lastActivityTime}
     RIDE_DETAILS_NOTIFY, //args {DetailedRide}
     MAP_LOAD_NOTIFY, //args {MapImage}
     ACTIVITY_SELECT_NOTIFY, //args {long id, View clickedView}
-    RIDES_LOAD_PARTIAL_NOTIFY //args {LinkedList<RideOverview>, bool insertOrAdd (true for insert)}
+    RIDES_LOAD_PARTIAL_NOTIFY, //args {LinkedList<RideOverview>, bool insertOrAdd (true for insert)}
+    ACTIVITY_SELECT_MULTIPLE_NOTIFY //args {ArrayList<RideOverview> ids, View}
 }
 interface Subject {
     public void attach(Observer observer);

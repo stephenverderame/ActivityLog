@@ -99,7 +99,7 @@ public class StravaModel extends RideModel {
                         ++pageNum;
 
                     }while(success);
-                    ObserverHelper.sendToObservers(observers, new ObserverEventArgs(ObserverNotifications.RIDES_LOAD_NOTIFY, null, System.currentTimeMillis()));
+                    ObserverHelper.sendToObservers(observers, new ObserverEventArgs(ObserverNotifications.RIDES_LOAD_NOTIFY, System.currentTimeMillis()));
                     return null;
                 }
                 return null;

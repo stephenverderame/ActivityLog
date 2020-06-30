@@ -61,7 +61,7 @@ public class StorageModel extends RideModel {
                             ++i;
                     }
                 }
-                ObserverHelper.sendToObservers(observers, new ObserverEventArgs(ObserverNotifications.RIDES_LOAD_NOTIFY, rides, lastSyncTime));
+                ObserverHelper.sendToObservers(observers, new ObserverEventArgs(ObserverNotifications.RIDES_LOAD_NOTIFY, lastSyncTime));
                 return rides;
             }
         });

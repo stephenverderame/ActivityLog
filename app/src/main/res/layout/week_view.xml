@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:card="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_margin="10dp" card:cardElevation="5dp">
+<LinearLayout
+    android:layout_width="match_parent"
+    android:layout_height="match_parent" android:orientation="vertical">
+    <GridLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:rowCount="2" android:columnCount="4"
+        android:useDefaultMargins="true">
+        <TextView android:layout_column="0" android:layout_columnSpan="3"
+            android:text="Week of..." android:textSize="30dp"
+            android:textColor="#000000" android:id="@+id/weekDate"/>
+        <TextView android:layout_row="1" android:layout_column="0" android:text="Distance"
+            android:layout_gravity="center" android:textSize="18dp" android:textColor="#000000"
+            android:id="@+id/weekDistance" android:layout_columnWeight="1"/>
+        <TextView android:layout_row="1" android:layout_column="1" android:text="Elevation"
+            android:layout_gravity="center" android:textSize="18dp" android:textColor="#000000"
+            android:id="@+id/weekElevation" android:layout_columnWeight="1"/>
+        <TextView android:layout_row="1" android:layout_column="2" android:text="Time"
+            android:layout_gravity="center" android:layout_columnWeight="1" android:textSize="18dp"
+            android:textColor="#000000" android:id="@+id/weekTime"/>
+    </GridLayout>
+    <LinearLayout android:orientation="horizontal" android:layout_width="match_parent" android:layout_columnSpan="7" android:layout_row="0"
+        android:layout_height="85dp" android:id="@+id/weekContainer"/>
+
+</LinearLayout>
+</androidx.constraintlayout.widget.ConstraintLayout>

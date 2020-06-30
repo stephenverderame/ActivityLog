@@ -10,7 +10,6 @@
     <GridLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_margin="10dp"
         android:columnCount="3"
         android:rowCount="4"
         android:useDefaultMargins="true">
@@ -22,44 +21,45 @@
             android:layout_row="0"
             android:text="Title"
             android:textColor="#000000"
-            android:textSize="24dp"
-            android:layout_rowSpan="2"/>
+            android:textSize="30dp"
+/>
         <TextView
             android:id="@+id/cardDate"
             android:layout_column="0"
-            android:layout_row="0"
+            android:layout_columnSpan="2"
+            android:layout_row="1"
             android:text="Date"
-            android:textSize="10dp"
-            android:layout_gravity="center"
-            android:textColor="#959393"
-            android:layout_columnSpan="2"/>
+            android:textSize="20dp"
+
+            android:textColor="#959393"/>
         <TextView android:id="@+id/cardActivityType"
-            android:layout_column="2" android:layout_row="1" android:textSize="14dp"
-            android:textColor="#959393" android:text="Activity" android:layout_rowWeight="1"
-            android:gravity="right"/>
+            android:layout_column="2" android:layout_row="1" android:textSize="20dp"
+            android:textColor="#959393" android:text="Activity"
+            android:layout_gravity="center" android:layout_columnWeight="1"/>
 
 
-        <TextView android:text="Distance" android:textSize="16dp" android:textColor="#000000"
+        <TextView android:text="Distance" android:textSize="24dp" android:textColor="#000000"
             android:layout_row="2" android:layout_column="0"
-            android:layout_gravity="center"/>
-        <TextView android:text="Time" android:textSize="16dp" android:textColor="#000000"
+            android:layout_gravity="center" android:layout_columnWeight="1"/>
+        <TextView android:text="Time" android:textSize="24dp" android:textColor="#000000"
             android:layout_row="2" android:layout_column="1"
-            android:layout_gravity="center" />
-        <TextView android:text="Elevation" android:textSize="16dp" android:textColor="#000000"
-            android:layout_row="2" android:layout_column="2"  />
+            android:layout_gravity="center" android:layout_columnWeight="1"/>
+        <TextView android:text="Elevation" android:textSize="24dp" android:textColor="#000000"
+            android:layout_row="2" android:layout_column="2"  android:layout_gravity="center"
+            android:layout_columnWeight="1"/>
 
 
-        <TextView android:text="Distance" android:textSize="12dp" android:textColor="#959393"
+        <TextView android:text="Distance" android:textSize="18dp" android:textColor="#959393"
             android:layout_row="3" android:layout_column="0"
             android:layout_gravity="center"
-            android:id="@+id/cardDistance"/>
-        <TextView android:text="Time" android:textSize="12dp" android:textColor="#959393"
+            android:id="@+id/cardDistance" android:layout_columnWeight="1"/>
+        <TextView android:text="Time" android:textSize="18dp" android:textColor="#959393"
             android:layout_row="3" android:layout_column="1"
             android:layout_gravity="center"
-            android:id="@+id/cardTime"/>
-        <TextView android:text="Elevation" android:textSize="12dp" android:textColor="#959393"
-            android:layout_row="3" android:layout_column="2"
-            android:id="@+id/cardElevation"/>
+            android:id="@+id/cardTime" android:layout_columnWeight="1"/>
+        <TextView android:text="Elevation" android:textSize="18dp" android:textColor="#959393"
+            android:layout_row="3" android:layout_column="2" android:layout_gravity="center"
+            android:id="@+id/cardElevation" android:layout_columnWeight="1"/>
     </GridLayout>
 
 </androidx.cardview.widget.CardView>

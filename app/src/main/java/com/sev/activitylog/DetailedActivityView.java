@@ -12,6 +12,8 @@ import android.widget.ImageView;
 import android.widget.LinearLayout;
 
 import java.text.SimpleDateFormat;
+import java.util.Timer;
+import java.util.TimerTask;
 
 public class DetailedActivityView extends AppCompatActivity implements Observer {
 
@@ -19,17 +21,29 @@ public class DetailedActivityView extends AppCompatActivity implements Observer 
     private DetailedRide rideData;
     private OAuth auth;
     private AuthToken token;
+
+    private GLView gl;
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        setContentView(R.layout.detail_view);
-        ID = getIntent().getLongExtra("activity_id", -1);
+//        setContentView(R.layout.detail_view);
+/*        ID = getIntent().getLongExtra("activity_id", -1);
         token = getIntent().getParcelableExtra("auth_token");
         if(token == null)
             token = new AuthToken(getSharedPreferences("auth_token", MODE_PRIVATE));
         auth = new OAuth(token);
         auth.attach(this);
-        new Thread(auth).start();
+        new Thread(auth).start();*/
+
+        gl = new GLView(this);
+        setContentView(gl);
+        Timer t = new Timer();
+/*        t.scheduleAtFixedRate(new TimerTask() {
+            @Override
+            public void run() {
+                gl.requestRender();
+            }
+        }, 0, 100);*/
 
     }
 

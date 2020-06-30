@@ -1,26 +1,19 @@
 package com.sev.activitylog;
 
+import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
 import android.content.Intent;
 import android.os.Bundle;
-import android.os.Handler;
-import android.os.Looper;
-import android.text.Layout;
-import android.view.View;
+import android.view.MenuItem;
 import android.widget.LinearLayout;
 
-import java.text.SimpleDateFormat;
-import java.time.Duration;
-import java.util.Comparator;
-import java.util.Date;
+import com.google.android.material.bottomnavigation.BottomNavigationView;
+
+import java.util.ArrayList;
 import java.util.LinkedList;
-import java.util.Timer;
-import java.util.TimerTask;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.Future;
 
 public class MainActivity extends AppCompatActivity implements Observer {
 
@@ -29,7 +22,8 @@ public class MainActivity extends AppCompatActivity implements Observer {
     long lastSync = 0;
     private OAuth auth;
     private RecyclerView recyclerView;
-    private CardListAdapter recyclerViewAdapter;
+    private RecentActivityAdapter recyclerViewAdapter; //adapter for per activity view
+    private WeekViewAdapter recyclerWeekAdapter; //adapter for per week view
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -39,13 +33,35 @@ public class MainActivity extends AppCompatActivity implements Observer {
         storage = new StorageModel(this);
         storage.attach(this);
         storage.getRides(0);
- //       notify(new ObserverEventArgs(ObserverNotifications.RIDES_LOAD_NOTIFY, null, null)); //DEBUGGING - to force update from strava
+//        notify(new ObserverEventArgs(ObserverNotifications.RIDES_LOAD_NOTIFY, null, null)); //DEBUGGING - to force update from strava
 
         recyclerView = (RecyclerView)findViewById(R.id.recycle);
         recyclerView.setLayoutManager(new LinearLayoutManager(this));
-        recyclerViewAdapter = new CardListAdapter(rideList);
+        recyclerViewAdapter = new RecentActivityAdapter(rideList);
         recyclerViewAdapter.attach(this);
         recyclerView.setAdapter(recyclerViewAdapter);
+        recyclerWeekAdapter = new WeekViewAdapter(rideList);
+        recyclerWeekAdapter.attach(this);
+
+        BottomNavigationView nav = (BottomNavigationView)findViewById(R.id.navBar);
+        nav.setOnNavigationItemSelectedListener(new BottomNavigationView.OnNavigationItemSelectedListener() {
+
+            @Override
+            public boolean onNavigationItemSelected(@NonNull MenuItem menuItem) {
+                switch(menuItem.getItemId()) {
+                    case R.id.recentMenuItem:
+                        recyclerView.setAdapter(recyclerViewAdapter);
+                        break;
+                    case R.id.weekMenuItem:
+                        recyclerWeekAdapter.init();
+                        recyclerView.setAdapter(recyclerWeekAdapter);
+                        break;
+                    default:
+                        return false;
+                }
+                return true;
+            }
+        });
     }
 
     @Override
@@ -65,19 +81,14 @@ public class MainActivity extends AppCompatActivity implements Observer {
                 startActivity((Intent) e.getEventArgs()[0]);
                 break;
             case RIDES_LOAD_NOTIFY: {
-                if(e.getEventArgs()[1] != null)
-                    lastSync = (long) e.getEventArgs()[1];
-                if(e.getEventArgs()[0] != null) {
-                    LinkedList<RideOverview> rides = (LinkedList<RideOverview>) e.getEventArgs()[0];
-                    rideList.addAll(rides);
-                }
+                if(e.getEventArgs()[0] != null)
+                    lastSync = (long) e.getEventArgs()[0];
                 if(System.currentTimeMillis() - lastSync > 1000 * 3600 * 24){ //data outdated, get new data from remote server
                     OAuth auth = new OAuth(new AuthToken(getSharedPreferences("auth_token", MODE_PRIVATE)));
                     auth.attach(this);
                     Thread t = new Thread(auth);
                     t.start();
                 }else {
-//                    populate(rideList);
                     storage.saveRides(rideList, lastSync);
                 }
                 break;
@@ -113,34 +124,16 @@ public class MainActivity extends AppCompatActivity implements Observer {
                 startActivity(detailedIntent);
                 break;
             }
+            case ACTIVITY_SELECT_MULTIPLE_NOTIFY:
+            {
+                //in week view, if multiple activities were recorded in the same day, they appear as one day in the week. If clicked it will open a new list with each ride
+                ArrayList<RideOverview> multiRides = (ArrayList<RideOverview>)e.getEventArgs()[0];
+                RecentActivityAdapter adapter = new RecentActivityAdapter(multiRides);
+                adapter.attach(this);
+                recyclerView.setAdapter(adapter);
+                break;
+            }
         }
     }
 
-    public void populate(LinkedList<RideOverview> rides) {
-        LinearLayout layout = (LinearLayout) findViewById(R.id.container);
-        layout.removeView(findViewById(R.id.loadingBar));
-        layout.removeView(findViewById(R.id.loadingText));
- /*       for (RideOverview ride : rides) {
-            ActivityView view = new ActivityView(this);
-            view.setTitle(ride.getName());
-            Date d = ride.getDate();
-            view.setSubtitle(new SimpleDateFormat("MMM dd yyyy hh:mm a").format(ride.getDate()));
-            view.setInfoGrid(1, 4);
-            view.setInfo("Distance", String.format("%.2f miles", ride.getDistance() * 0.000621371), 0, 0);
-            view.setInfo("Time", TimeSpan.fromSeconds((long) ride.getMovingTime()), 0, 1);
-            view.setInfo("Elevation", String.format("%.2f ft", ride.getClimbed() * 3.28084), 0, 2);
-            view.setInfo("Type", ride.getActivityType(), 0, 3);
-            view.setId(ride.getId());
-            view.attach(this);
-            view.setLayoutParams(new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, (int) (getResources().getDisplayMetrics().density * 100)));
-            float dp = getResources().getDisplayMetrics().density;
-            view.setPadding(new PaddingBuilder().top(20).left(20).right(20).build());
-            view.setFont(new ActivityViewFontBuilder().titleSize(18).subtitleSize(8).labelSize(10).infoSize(6).build());
-            view.setInfoPadding(5);
-            layout.addView(view);
-        }*/
-        CardListAdapter adapter = new CardListAdapter(rides);
-        adapter.attach(this);
-        recyclerView.setAdapter(adapter);
-    }
 }

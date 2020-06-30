@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="basic_vertex_glsl">
+        #version 300 es\n
+        layout(location = 0) in vec3 pos;
+        layout(location = 1) in vec2 texCoords;
+        uniform mat4 viewProj;
+        uniform mat4 model;
+        out vec2 tCoords;
+        void main(){
+            gl_Position = viewProj * model * vec4(pos, 1.0);
+            tCoords = texCoords;
+        }
+    </string>
+    <string name="basic_frag_glsl">
+        #version 300 es\n
+        precision mediump float;
+        in vec2 tCoords;
+        out vec4 glFragColor;
+        uniform sampler2D tex;
+        uniform vec4 color;
+        uniform bool useColor;
+        void main(){
+            if(useColor)
+                glFragColor = color;
+            else
+                glFragColor = texture(tex, tCoords);
+        }
+    </string>
+    <string name="skybox_vert_glsl">
+        #version 300 es\n
+        layout(location = 0) in vec3 pos;
+        out vec3 texCoord;
+        uniform mat4 view;
+        uniform mat4 proj;
+        uniform mat4 model;
+        void main(){
+            texCoord = pos;
+            gl_Position = proj * mat4(mat3(view)) * model * vec4(pos, 1.0);
+        }
+    </string>
+    <string name="skybox_frag_glsl">
+        #version 300 es\n
+        precision mediump float;
+        in vec3 texCoord;
+        uniform samplerCube skyboxTexture;
+        out vec4 glFragColor;
+        void main(){
+            glFragColor = texture(skyboxTexture, texCoord);
+        }
+    </string>
+</resources>

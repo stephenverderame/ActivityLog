@@ -26,9 +26,16 @@
                 android:scrollbars="vertical"
                 android:layout_width="match_parent"
                 android:layout_height="match_parent"
-                android:id="@+id/recycle">
+                android:id="@+id/recycle"
+                android:layout_weight="90">
 
             </androidx.recyclerview.widget.RecyclerView>
+            <com.google.android.material.bottomnavigation.BottomNavigationView
+                android:id="@+id/navBar"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content" app:menu="@menu/bottom_nav_menu"
+                android:layout_weight="10"/>
+
 
         </LinearLayout>
 
