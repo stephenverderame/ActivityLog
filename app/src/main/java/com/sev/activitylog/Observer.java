@@ -32,7 +32,9 @@ enum ObserverNotifications {
     MAP_LOAD_NOTIFY, //args {MapImage}
     ACTIVITY_SELECT_NOTIFY, //args {long id, View clickedView}
     RIDES_LOAD_PARTIAL_NOTIFY, //args {LinkedList<RideOverview>, bool insertOrAdd (true for insert)}
-    ACTIVITY_SELECT_MULTIPLE_NOTIFY //args {ArrayList<RideOverview> ids, View}
+    ACTIVITY_SELECT_MULTIPLE_NOTIFY, //args {ArrayList<RideOverview> ids, View}
+    OPENGL_INIT_NOTIFY,
+    TOUCH_NOTIFY //args MotionEvent
 }
 interface Subject {
     public void attach(Observer observer);

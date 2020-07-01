@@ -190,12 +190,15 @@ class WeekViewAdapter extends RecyclerView.Adapter<WeekViewAdapter.WeekViewHolde
      */
     private ArrayList<BasicRideData> getActivityWeek(int weekFromToday){
         ArrayList<BasicRideData> weekRides = new ArrayList<>();
+        //makes sure startDate is always a monday and endDate is always a sunday to align weeks
         Date endDate = new Date((System.currentTimeMillis() + (6 - latestDayOfWeek) * (long)(1000 * 3600 * 24)) - (long)weekFromToday * 1000 * 3600 * 24 * 7); //first term casts to long bc of System.currentTimeMillis(), second term of subtraction does not implicitly
         Date startDate = new Date((System.currentTimeMillis() - (latestDayOfWeek * (long)(1000 * 3600 * 24))) - (long)weekFromToday * 1000 * 3600 * 24 * 7);
         long key = (endDate.getTime() + startDate.getTime()) / 2;
         int id = 0;
         int start = 0, end = list.size() - 1; //start and end in memory not time
         //items towards end of list is later
+
+        //interpolated binary search based on date
         do {
             id = (int) Math.round((list.get(start).date.getTime() - key) / (double) (list.get(start).date.getTime() - list.get(end).date.getTime()) * (end - start) + start);
             if(id < start) id = start;

@@ -1,12 +1,13 @@
 package com.sev.activitylog;
 
 import android.content.Context;
+import android.content.res.Resources;
 import android.opengl.GLES30;
 import android.util.Log;
 
 public class GLShader implements Destructor {
     private int program, vertex, fragment, geometry;
-    public GLShader(Context ctx, int vertexResourceId, int fragmentResourceId) {
+    public GLShader(Resources ctx, int vertexResourceId, int fragmentResourceId) {
         String vertexCode = ctx.getString(vertexResourceId);
         String fragmentCode = ctx.getString(fragmentResourceId);
         vertex = GLES30.glCreateShader(GLES30.GL_VERTEX_SHADER);
@@ -38,6 +39,9 @@ public class GLShader implements Destructor {
     public void setMat4(String name, float[] matrix){
         GLES30.glUniformMatrix4fv(GLES30.glGetUniformLocation(program, name), 1, false, matrix, 0);
     }
+    public void setMat3(String name, float[] matrix){
+        GLES30.glUniformMatrix3fv(GLES30.glGetUniformLocation(program, name), 1, false, matrix, 0);
+    }
     public void setInt(String name, int val){
         GLES30.glUniform1i(GLES30.glGetUniformLocation(program, name), val);
     }
@@ -49,6 +53,15 @@ public class GLShader implements Destructor {
     }
     public void setBool(String name, boolean val){
         GLES30.glUniform1i(GLES30.glGetUniformLocation(program, name), val ? 1 : 0);
+    }
+    public void setFloat(String name, float val){
+        GLES30.glUniform1f(GLES30.glGetUniformLocation(program, name), val);
+    }
+    public void setVec3(String name, float[] vec){
+        GLES30.glUniform3fv(GLES30.glGetUniformLocation(program, name), 1, vec, 0);
+    }
+    public void setVec3(String name, float x, float y, float z){
+        GLES30.glUniform3f(GLES30.glGetUniformLocation(program, name), x, y, z);
     }
 
     @Override

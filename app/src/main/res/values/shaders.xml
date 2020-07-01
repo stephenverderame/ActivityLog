@@ -4,27 +4,51 @@
         #version 300 es\n
         layout(location = 0) in vec3 pos;
         layout(location = 1) in vec2 texCoords;
+        layout(location = 2) in vec3 normal;
         uniform mat4 viewProj;
         uniform mat4 model;
+        uniform mat3 normalMatrix;
         out vec2 tCoords;
+        out vec3 norm;
+        out vec3 fragPos;
         void main(){
             gl_Position = viewProj * model * vec4(pos, 1.0);
+            fragPos = vec3(model * vec4(pos, 1.0));
             tCoords = texCoords;
+            norm = mat3(transpose(inverse(model))) * normal;
         }
     </string>
     <string name="basic_frag_glsl">
         #version 300 es\n
         precision mediump float;
         in vec2 tCoords;
+        in vec3 norm;
+        in vec3 fragPos;
         out vec4 glFragColor;
+        struct dirLight{
+            vec3 position;
+            vec3 color;
+            float ambientFac, specFac, diffFac;
+        };
         uniform sampler2D tex;
         uniform vec4 color;
         uniform bool useColor;
+        uniform dirLight sun;
+        uniform vec3 eyePos;
         void main(){
-            if(useColor)
-                glFragColor = color;
-            else
-                glFragColor = texture(tex, tCoords);
+            vec4 diffuseColor;
+            if(useColor) diffuseColor = color;
+            else diffuseColor = texture(tex, tCoords);
+            vec3 ambientLighting = sun.color * sun.ambientFac;
+            vec3 lightDir = normalize(sun.position - fragPos);
+            vec3 normal = normalize(norm);
+            float diffFactor = max(dot(normal, lightDir), 0.0);
+            vec3 diffuseLighting = diffFactor * sun.color * sun.diffFac;
+
+            vec3 reflectDirection = normalize(lightDir + normalize(eyePos - fragPos));
+            float spec = pow(max(dot(normal, reflectDirection), 0.0), 32.0);
+            vec3 specularLighting = spec * sun.specFac * sun.color;
+            glFragColor = vec4((ambientLighting + diffuseLighting) * diffuseColor.rgb, diffuseColor.a);
         }
     </string>
     <string name="skybox_vert_glsl">
@@ -49,4 +73,25 @@
             glFragColor = texture(skyboxTexture, texCoord);
         }
     </string>
+    <string name="simple_vert_glsl">
+        #version 300 es\n
+        layout(location = 0) in vec3 pos;
+        uniform mat4 viewProj;
+        uniform mat4 model;
+        void main(){
+            gl_Position = viewProj * model * vec4(pos, 1.0);
+        }
+    </string>
+    <string name="simple_frag_glsl">
+        #version 300 es\n
+        precision mediump float;
+        out vec4 fragColor;
+        uniform vec4 color;
+        void main(){
+            fragColor = color;
+        }
+    </string>
+    <integer name="basic_shader_id">0</integer>
+    <integer name="sky_shader_id">1</integer>
+    <integer name="simple_shader_id">2</integer>
 </resources>
