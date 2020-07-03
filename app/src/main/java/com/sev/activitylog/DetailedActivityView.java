@@ -1,20 +1,13 @@
 package com.sev.activitylog;
 
 import androidx.appcompat.app.AppCompatActivity;
-import androidx.recyclerview.widget.LinearLayoutManager;
-import androidx.recyclerview.widget.RecyclerView;
 
 import android.content.Intent;
 import android.os.Bundle;
-import android.text.Layout;
 import android.util.Log;
 import android.view.MotionEvent;
-import android.widget.ImageView;
-import android.widget.LinearLayout;
 
-import java.text.SimpleDateFormat;
 import java.util.Timer;
-import java.util.TimerTask;
 
 public class DetailedActivityView extends AppCompatActivity implements Observer, Runnable {
 
@@ -29,6 +22,7 @@ public class DetailedActivityView extends AppCompatActivity implements Observer,
     private Terrain terrain;
     private GLCamera camera;
     private DirectionalLight sun;
+    private GLShadowPass shadow;
     private Map route;
 
     float lastX = -1, lastY = -1;
@@ -106,7 +100,6 @@ public class DetailedActivityView extends AppCompatActivity implements Observer,
                 gl = new GLView(this);
                 gl.attach(this);
                 setContentView(gl);
-                camera = new GLCamera();
                 break;
             }
             case OPENGL_INIT_NOTIFY:
@@ -119,15 +112,23 @@ public class DetailedActivityView extends AppCompatActivity implements Observer,
                 terrain.scale(100f, 100f, 100f);
                 terrain.translate(0, 0, 0);
                 scene.addObject(terrain, false);
+                Cube cube = new Cube();
+                cube.setColor(1, 0, 0, 1);
+                cube.scale(0.5f, 0.5f, 0.5f);
+                cube.translate(-1, 1, 0);
                 sun = new DirectionalLight();
                 sun.setColor(1, 1, 1);
-                sun.translate(0, 20, -20);
-                sun.setFactors(0.5f, 0.5f, 0.6f);
+                sun.translate(-5, 5, 0);
+                sun.setFactors(0.5f, 0.5f, 0.8f);
                 scene.addObject(sun, false);
+                scene.addObject(cube, false);
+                shadow = new GLShadowPass(sun, new float[] {0, 0, 0}, getResources());
+                camera = new GLCamera(new float[]{0, 2, -1}, new float[]{0, 0, 0});
+                gl.addRendererPass(shadow);
  //               cubeHandle = scene.addObject(new Cube(), false);
 //                ((Cube)scene.get(cubeHandle)).setColor(1.0f, 0.0f, 0.0f, 1.0f);
                 gl.setRendererScene(scene);
- //               gl.setRendererView(camera);
+                gl.setRendererView(camera);
                 gl.setDrawLogic(this);
                 break;
             }
@@ -152,7 +153,8 @@ public class DetailedActivityView extends AppCompatActivity implements Observer,
         if(e.getAction() == MotionEvent.ACTION_MOVE && lastX != -1 && lastY != -1){
             float dx = x - lastX;
             float dy = y - lastY;
-            terrain.translate(dx * 0.0005f, 0, dy * 0.0005f);
+ //           terrain.translate(dx * 0.0005f, 0, dy * 0.0005f);
+            camera.translate(dx * 0.005f, 0, dy * 0.005f);
 //            sun.translate(dx * 0.0005f, 0, dy * 0.0005f);
         }
         lastX = x;

@@ -149,7 +149,7 @@ public class Pos {
                                     JSONObject jsonPos = locations.getJSONObject(i);
                                     JSONObject location = jsonPos.getJSONObject("location");
                                     heightMap[(int) Math.round(Math.abs(location.getDouble("lat") - btmRight.lat) * resolutionY)]
-                                            [(int) Math.round(Math.abs(location.getDouble("lng") - topLeft.lon) * resolutionX)].elevation = jsonPos.getDouble("elevation") * RideOverview.METERS_MILES_CONVERSION / 10; //puts elevation onto a similar scale as lat + lon
+                                            [(int) Math.round(Math.abs(location.getDouble("lng") - topLeft.lon) * resolutionX)].elevation = jsonPos.getDouble("elevation") * RideOverview.METERS_MILES_CONVERSION / 5; //puts elevation onto a similar scale as lat + lon
                                 }
                             }else{
                                 Log.e("Height Fetch", "Error getting data " + obj.getString("status"));

@@ -26,6 +26,7 @@ public abstract class GLObject implements Destructor {
     protected int shaderID;
     protected boolean isModelDirty;
     public abstract void draw(GLRendererShaderManager shader);
+    public abstract void drawGeometry(GLRendererShaderManager shader);
     public GLObject(){
         Matrix.setIdentityM(model, 0);
         isModelDirty = false;
@@ -108,10 +109,29 @@ class Cube extends GLObject {
         shader.use();
         shader.setMat4("model", model);
         shader.setBool("useColor", color);
+        if(isModelDirty){
+            float[] mat = new float[16];
+            Matrix.invertM(mat, 0, model, 0);
+            float[] normalMat = new float[16];
+            Matrix.transposeM(normalMat, 0, mat, 0);
+            shader.setMat4("normalMatrix", normalMat);
+        }
         if(color) shader.setVec4("color", r, g, b, a);
         GLES30.glBindVertexArray(vao[0]);
         GLES30.glDrawArrays(GLES30.GL_TRIANGLES, 0, 36);
+        GLES30.glBindVertexArray(0);
     }
+
+    @Override
+    public void drawGeometry(GLRendererShaderManager shaders) {
+        GLShader shader = shaders.getShader(shaderID);
+        shader.use();
+        shader.setMat4("model", model);
+        GLES30.glBindVertexArray(vao[0]);
+        GLES30.glDrawArrays(GLES30.GL_TRIANGLES, 0, 36);
+        GLES30.glBindVertexArray(0);
+    }
+
     public Cube(){
         vao = new int[1];
         vbo = new int[1];
@@ -127,7 +147,9 @@ class Cube extends GLObject {
         fb.position(0); //points to first element
         GLES30.glBufferData(GLES30.GL_ARRAY_BUFFER, cubeVerts.length * 4, fb, GLES30.GL_STATIC_DRAW);
         GLES30.glVertexAttribPointer(0, 3, GLES30.GL_FLOAT, false, 8 * 4, 0);
+        GLES30.glVertexAttribPointer(2, 3, GLES30.GL_FLOAT, false, 8 * 4, 3 * 4);
         GLES30.glEnableVertexAttribArray(0);
+        GLES30.glEnableVertexAttribArray(2);
         color = true;
     }
     public void setColor(float r, float g, float b, float a){
@@ -170,6 +192,7 @@ class Skybox extends Cube {
             GLUtils.texImage2D(GLES30.GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, 0, bmp, 0); //+x, -x, +y, -y, +z, -z
             bmp.recycle();
         }
+        Matrix.scaleM(model, 0, 10,10, 10);
     }
     public Skybox(int[] textureIds, Resources ctx, int shaderId){
         this(textureIds, ctx);
@@ -180,8 +203,6 @@ class Skybox extends Cube {
     public void draw(GLRendererShaderManager shaders) {
         GLShader shader = shaders.getShader(shaderID);
         shader.use();
-        Matrix.setIdentityM(model, 0);
-        Matrix.scaleM(model, 0, 10,10, 10);
         shader.setMat4("model", model);
         GLES30.glBindVertexArray(vao[0]);
         GLES30.glBindTexture(GLES30.GL_TEXTURE_CUBE_MAP, cubemap[0]);
@@ -189,6 +210,10 @@ class Skybox extends Cube {
         GLES30.glDrawArrays(GLES30.GL_TRIANGLES, 0, 36);
         GLES30.glDepthMask(true);
         GLES30.glBindTexture(GLES30.GL_TEXTURE_CUBE_MAP, 0);
+    }
+
+    @Override
+    public void drawGeometry(GLRendererShaderManager shaders) {
     }
 
     @Override
@@ -224,6 +249,11 @@ class DirectionalLight extends GLObject {
     }
 
     @Override
+    public void drawGeometry(GLRendererShaderManager shader) {
+
+    }
+
+    @Override
     public void destructor() {
 
     }
@@ -248,6 +278,7 @@ class DirectionalLight extends GLObject {
         this.diff = diff;
         isDirty = true;
     }
+    public final float[] getPos() {return pos;}
 }
 class Terrain extends GLObject {
 
@@ -299,10 +330,10 @@ class Terrain extends GLObject {
                 Matrix.invertM(mat, 0, model, 0);
                 float[] normalMat = new float[16];
                 Matrix.transposeM(normalMat, 0, mat, 0);
-                shader.setMat3("normalMatrix", GLM.mat4toMat3(normalMat));
+                shader.setMat4("normalMatrix", normalMat);
             }
             shader.setBool("useColor", false);
-            shader.setInt("tex", 0);
+ //           shader.setInt("tex", 0);
             GLES30.glActiveTexture(GLES30.GL_TEXTURE0);
             GLES30.glBindTexture(GLES30.GL_TEXTURE_2D, glTexture[0]);
             GLES30.glBindVertexArray(vao[0]);
@@ -316,6 +347,18 @@ class Terrain extends GLObject {
             GLES30.glDrawArrays(GLES30.GL_LINES, 0, heightMap.length * heightMap[0].length * 2);
             GLES30.glBindVertexArray(0);*/
             isModelDirty = false;
+        }
+    }
+
+    @Override
+    public void drawGeometry(GLRendererShaderManager shaders) {
+        if(init()) {
+            GLShader shader = shaders.getShader(shaderID);
+            shader.use();
+            shader.setMat4("model", model);
+            GLES30.glBindVertexArray(vao[0]);
+            GLES30.glDrawElements(GLES30.GL_TRIANGLES, (heightMap.length - 1) * (heightMap[0].length - 1) * INDEX_DATA_COUNT, GLES30.GL_UNSIGNED_INT, 0);
+            GLES30.glBindVertexArray(0);
         }
     }
 
@@ -359,7 +402,7 @@ class Terrain extends GLObject {
                         float[] normal = GLM.normalize(GLM.cross(GLM.subtract(b, a), GLM.subtract(c, a)));
                         if(!((j == heightMap[0].length - 1) ^ (i == heightMap.length - 1)))
                             normal = GLM.negate(normal);
-                        fb.put(normal);
+                        fb.put(GLM.normalize(normal));
 
                         debugFb.put((float)(heightMap[i][j].lon - first.lon));
                         debugFb.put((float)(heightMap[i][j].elevation - first.elevation));
@@ -470,6 +513,22 @@ class GLSceneComposite extends GLObject {
                 obj.drawable.model = m;
             }else{
                 obj.drawable.draw(shaders);
+            }
+        }
+    }
+
+    @Override
+    public void drawGeometry(GLRendererShaderManager shader) {
+        for(ObjectWrapper obj : sceneObjects){
+            if(obj.isRelative){
+                float[] relativeModel = new float[16];
+                Matrix.multiplyMM(relativeModel, 0, model, 0, obj.drawable.model, 0);
+                float[] m = obj.drawable.model;
+                obj.drawable.model = relativeModel;
+                obj.drawable.drawGeometry(shader);
+                obj.drawable.model = m;
+            }else{
+                obj.drawable.drawGeometry(shader);
             }
         }
     }
