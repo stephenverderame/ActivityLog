@@ -1,6 +1,9 @@
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+<LinearLayout
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical"
@@ -16,11 +19,37 @@
         android:paddingRight="20dp"
         android:paddingBottom="20dp"
         android:id="@+id/detailView"/>
-    <ImageView
+    <LinearLayout
         android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:layout_margin="20dp"
+        android:orientation="vertical"
+        android:background="@drawable/round_rect_shadow">
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:text="Notes"
+        android:textSize="30dp"/>
+    <TextView
+        android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_weight=".50"
-        android:background="@drawable/round_rect_shadow"
-        android:id="@+id/mapView"/>
+        android:layout_gravity="center"
+        android:text="How did you feel? What did you eat? How much water/sleep/nutrition? What do you need to work on?"/>
+    <EditText
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:inputType="textMultiLine"
+        android:scrollbars="vertical"
+        android:id="@+id/rideNotes"/>
+    </LinearLayout>
+    <Button
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center"
+        android:text="View in 3D"
+        android:textSize="20dp"
+        android:id="@+id/viewGLBtn"
+        android:background="@drawable/round_rect_shadow" />
 
 </LinearLayout>
+</ScrollView>

@@ -35,7 +35,7 @@ public class GLView extends GLSurfaceView implements Subject {
         });
         setRenderer(renderer);
         obs = new LinkedList<>();
-//        setRenderMode(GLSurfaceView.RENDERMODE_WHEN_DIRTY);
+        setRenderMode(GLSurfaceView.RENDERMODE_WHEN_DIRTY);
 
 
     }
@@ -52,11 +52,9 @@ public class GLView extends GLSurfaceView implements Subject {
             o.notify(new ObserverEventArgs(ObserverNotifications.TOUCH_NOTIFY, e));
         return true;
     }
+
     public void setDrawLogic(Runnable run){
         renderer.setDrawLogic(run);
-    }
-    public void setRenderMode(int mode){
-        setRenderMode(mode);
     }
     public void setRendererScene(GLSceneComposite scene){
         renderer.setScene(scene);
@@ -81,12 +79,12 @@ class GLRenderer implements GLSurfaceView.Renderer, Destructor {
 
     private float[] view = new float[16];
     private float[] proj = new float[16];
-    private Resources res;
+    private float[] viewProj = new float[16];
+    private final Resources res;
     private GLRendererShaderManager shaders;
     private GLSceneComposite scene;
     private Runnable drawLogic;
-    private GLObject cube;
-    private Runnable onGlLoaded;
+    private final Runnable onGlLoaded;
     private GLCamera cam;
     private int width, height;
     private LinkedList<GLRenderPass> renderPasses;
@@ -99,9 +97,9 @@ class GLRenderer implements GLSurfaceView.Renderer, Destructor {
     @Override
     public void onSurfaceCreated(GL10 gl10, EGLConfig eglConfig) { //when gl is initialized - called once
         shaders = new GLRendererShaderManager();
-        shaders.setShader(res.getInteger(R.integer.basic_shader_id), new GLShader(res, R.string.basic_vertex_glsl, R.string.basic_frag_glsl));
-        shaders.setShader(res.getInteger(R.integer.sky_shader_id), new GLShader(res, R.string.skybox_vert_glsl, R.string.skybox_frag_glsl));
-        shaders.setShader(res.getInteger(R.integer.debug_shader_id), new GLShader(res, R.string.debug_vert_glsl, R.string.debug_frag_glsl));
+        shaders.setShader(res.getInteger(R.integer.basic_shader_id), new GLShader(res, R.raw.basic_vertex, R.raw.basic_frag));
+        shaders.setShader(res.getInteger(R.integer.sky_shader_id), new GLShader(res, R.raw.skybox_vert, R.raw.skybox_frag));
+        shaders.setShader(res.getInteger(R.integer.debug_shader_id), new GLShader(res, R.raw.debug_vert, R.raw.debug_frag));
         GLES30.glEnable(GLES30.GL_DEPTH_TEST);
         GLES30.glEnable(GLES30.GL_BLEND);
         GLES30.glClearColor(0.529f, 0.808f, 0.922f, 1.0f);
@@ -113,8 +111,8 @@ class GLRenderer implements GLSurfaceView.Renderer, Destructor {
         GLES30.glViewport(0, 0, width, height);
         this.width = width;
         this.height = height;
-        float aspectRatio = (float)width / height;
-        Matrix.frustumM(proj, 0, -aspectRatio, aspectRatio, -1, 1, .5f, 50);
+        final float aspectRatio = (float)width / height;
+        cam.setProjection(aspectRatio, -1);
         updateViewProjMat();
 
     }
@@ -127,8 +125,9 @@ class GLRenderer implements GLSurfaceView.Renderer, Destructor {
         if(drawLogic != null) drawLogic.run();
         if(scene != null){
             int j = 1;
-            for(GLRenderPass pass : renderPasses)
-                pass.draw(scene, shaders, j++);
+            for(GLRenderPass pass : renderPasses) {
+                pass.draw(scene, shaders, j++, this);
+            }
             for(int i = 0; i < renderPasses.size(); ++i)
                 renderPasses.get(i).bindForReading(i + 1);
             if(renderPasses.size() >= 1) GLES30.glViewport(0, 0, width, height);
@@ -138,7 +137,7 @@ class GLRenderer implements GLSurfaceView.Renderer, Destructor {
     }
     private void updateViewProjMat() {
         view = cam.getMat();
-        float[] viewProj = new float[16];
+        proj = cam.getProj();
         Matrix.multiplyMM(viewProj, 0, proj, 0, view, 0);
         GLShader skybox = shaders.getShader(res.getInteger(R.integer.sky_shader_id));
         GLShader basic = shaders.getShader(res.getInteger(R.integer.basic_shader_id));
@@ -175,6 +174,8 @@ class GLRenderer implements GLSurfaceView.Renderer, Destructor {
     }
     public void addRenderPass(GLRenderPass pass) {this.renderPasses.add(pass);}
     public void removRenderPass(GLRenderPass p) {this.renderPasses.remove(p);}
+    public float aspectRatio() {return (float)width / height;}
+    public GLCamera getCam() {return cam;}
 }
 class GLRendererShaderManager implements Destructor {
     private HashMap<Integer, GLShader> shaders;
@@ -204,14 +205,14 @@ class GLRendererShaderManager implements Destructor {
     }
 
 }
-class GLCamera {
+class  GLCamera {
     public static final float[] UP_VECTOR = {0, 1, 0};
     private float[] position, direction, right, localUp;
-    float yaw, pitch;
-    private float[] view;
-    private boolean dirtyBit, dirtyAngle;
+    float yaw, pitch, fov, aspect, viewDistance;
+    private float[] view, proj;
+    private boolean dirtyBit, dirtyAngle, dirtyProj;
     public float[] getMat(){
-        if(shouldRefresh()){
+        if(dirtyBit || dirtyAngle){
             if(dirtyAngle){
                 updateVectors();
             }
@@ -222,8 +223,16 @@ class GLCamera {
         }
         return view;
     }
+    public float[] getProj(){
+        if(dirtyProj){
+            Matrix.perspectiveM(proj, 0, fov, aspect, 0.5f, viewDistance);
+            dirtyProj = false;
+        }
+        return proj;
+    }
     public GLCamera(float[] eye, float[] center) {
         view = new float[16];
+        proj = new float[16];
         position = eye;
         direction = GLM.normalize(GLM.subtract(center, eye));
         yaw = (float)Math.asin(-direction[1]);
@@ -232,6 +241,9 @@ class GLCamera {
         localUp = GLM.normalize(GLM.cross(direction, right));
         dirtyBit = true;
         dirtyAngle = false;
+        dirtyProj = false;
+        fov = 90;
+        viewDistance = 50;
     }
     public GLCamera(float[] eye, float yaw, float pitch) {
         view = new float[16];
@@ -243,6 +255,9 @@ class GLCamera {
         localUp = new float[3];
         dirtyBit = true;
         dirtyAngle = true;
+        dirtyProj = false;
+        fov = 90;
+        viewDistance = 50;
     }
     public void setPos(float x, float y, float z){
         position[0] = x;
@@ -253,7 +268,25 @@ class GLCamera {
     public void rotateLook(float yaw, float pitch){
         this.yaw = yaw;
         this.pitch = pitch;
+        final float maxVerticalRads = 1.553343f; //89 degrees in radians
+        if(this.pitch < -maxVerticalRads) this.pitch = -maxVerticalRads;
+        if(this.pitch > maxVerticalRads) this.pitch = maxVerticalRads;
         dirtyAngle = true;
+    }
+    public void rotatePosAboutFocus(float x, float y, float z, float r){
+        float[] mat = new float[16];
+        float[] target = GLM.add(position, direction);
+        Matrix.setIdentityM(mat, 0);
+//        Matrix.translateM(mat, 0, position[0], position[1], position[2]);
+        Matrix.rotateM(mat, 0, x, y, z, r);
+//        Matrix.translateM(mat, 0, position[0], position[1], position[2]);
+        float[] inV = new float[] {position[0], position[1], position[2], 1};
+        float[] outV = new float[4];
+        Matrix.multiplyMV(outV, 0, mat, 0, inV, 0);
+        position[0] = outV[0];
+        position[1] = outV[1];
+        position[2] = outV[2];
+        dirtyBit = true;
     }
     private void updateVectors(){
         direction[0] = (float)(Math.cos(yaw) * Math.cos(pitch));
@@ -263,12 +296,17 @@ class GLCamera {
         right = GLM.normalize(GLM.cross(UP_VECTOR, direction));
         localUp = GLM.normalize(GLM.cross(direction, right));
     }
-    public void translate(float x, float y, float z){
-        position[0] += x;
-        position[1] += y;
-        position[2] += z;
+    public void translate(float right, float vert, float forward){
+        float[] forw = GLM.normalize(GLM.cross(this.right, UP_VECTOR));
+        float fac = fov < 90 ? (fov / 90.f) : 1.f;
+        right *= fac;
+        forward *= fac;
+        vert *= fac;
+        position = GLM.add(position, GLM.scale(this.right, right));
+        position = GLM.add(position, GLM.scale(forw, forward));
         dirtyBit = true;
     }
+    public float[] getPos() {return position;}
     public void lookAt(float[] center){
         direction = GLM.normalize(GLM.subtract(center, position));
         yaw = (float)Math.asin(-direction[1]);
@@ -277,9 +315,25 @@ class GLCamera {
         localUp = GLM.normalize(GLM.cross(direction, right));
         dirtyBit = true;
     }
-    public boolean shouldRefresh() {return dirtyBit || dirtyAngle;}
+    public boolean shouldRefresh() {return dirtyBit || dirtyAngle || dirtyProj;}
     public float getYaw() {return yaw;}
     public float getPitch() {return pitch;}
+    public float getFov() {return fov;}
+    public void setFov(float f) {
+        fov = f;
+        if(fov < 1)
+            fov = 1;
+        if(fov > 270)
+            fov = 270;
+        dirtyProj = true;
+    }
+    public void setProjection(float aspectRatio, float viewDistance){
+        if(aspectRatio >= 0)
+            this.aspect = aspectRatio;
+        if(viewDistance >= 0)
+            this.viewDistance = viewDistance;
+        dirtyProj = true;
+    }
 
 }
 abstract class GLRenderPass implements Destructor {
@@ -312,18 +366,20 @@ abstract class GLRenderPass implements Destructor {
      * @param sm shader manager to update uniforms in other shaders
      * @param passIndex index onto which texture this pass should bind to
      */
-    public abstract void draw(GLSceneComposite scene, GLRendererShaderManager sm, int passIndex);
+    public abstract void draw(GLSceneComposite scene, GLRendererShaderManager sm, int passIndex, GLRenderer renderer);
     public abstract float[] getViewProjMat();
 }
 class GLShadowPass extends GLRenderPass {
-    private float[] eye, center;
+    private float[] center;
     private float[] viewProj;
     private GLRendererShaderManager shaderManager;
-    private Resources rs;
+    private final Resources rs;
     public static final int SHADOWMAP_RES = 2048;
-    public GLShadowPass(DirectionalLight caster, float[] center, Resources resources) {
+    private final DirectionalLight caster;
+    float[] minBounds, maxBounds;
+    public GLShadowPass(final DirectionalLight caster, final float[] center, Resources resources) {
         super(resources.getInteger(R.integer.depth_shader_id));
-        eye = caster.getPos();
+        this.caster = caster;
         this.rs = resources;
         this.center = center;
         fbo = new int[1];
@@ -346,15 +402,9 @@ class GLShadowPass extends GLRenderPass {
             Log.e("Shadow Map", "Framebuffer error " + res + " " + GLES30.glGetError());
         }
         GLES30.glBindFramebuffer(GLES30.GL_FRAMEBUFFER, 0);
-        float[] proj = new float[16];
-        float[] view = new float[16];
         viewProj = new float[16];
-        Matrix.orthoM(proj, 0, -5, 5, -5, 5, 1, 20);
-//        Matrix.frustumM(proj, 0, -1, 1, -1, 1, 1, 20);
-        Matrix.setLookAtM(view, 0, eye[0], eye[1], eye[2], center[0], center[1], center[2], 0, 1, 0);
-        Matrix.multiplyMM(viewProj, 0, proj, 0, view, 0);
         shaderManager = new GLRendererShaderManager(renderShaderId);
-        shaderManager.setShader(renderShaderId, new GLShader(resources, R.string.debug_vert_glsl, R.string.depth_frag_glsl));
+        shaderManager.setShader(renderShaderId, new GLShader(resources, R.raw.debug_vert, R.raw.depth_frag));
         shaderManager.getShader(renderShaderId).use();
         shaderManager.getShader(renderShaderId).setMat4("viewProj", viewProj);
     }
@@ -367,11 +417,11 @@ class GLShadowPass extends GLRenderPass {
     }
 
     @Override
-    public void draw(GLSceneComposite scene, GLRendererShaderManager sm, int index) {
+    public void draw(GLSceneComposite scene, GLRendererShaderManager sm, int index, GLRenderer renderer) {
+        viewProj = computeShadowFrustrum(renderer.getCam().getMat(), caster.getPos(), center, 1f, 3f, renderer.getCam().getFov(), renderer.aspectRatio());
         GLShader shader = sm.getShader(rs.getInteger(R.integer.basic_shader_id));
         shader.use();
         shader.setMat4("lightSpaceMatrix", viewProj);
-//        shader.setInt("shadowMap", index);
         this.shaderManager.getShader(renderShaderId).use();
         this.shaderManager.getShader(renderShaderId).setMat4("viewProj", viewProj);
         GLES30.glBindFramebuffer(GLES30.GL_FRAMEBUFFER, fbo[0]);
@@ -387,6 +437,81 @@ class GLShadowPass extends GLRenderPass {
     }
     public void setCenter(float[] center){
         this.center = center;
+    }
+    float[] computeShadowFrustrum(float[] camViewProj, float[] lightPos, float[] center, float near, float far, float fov, float aspectRatio){
+        lightPos = new float[] {-10, 1, 0};
+        fov = 45;
+ //       near = 2;
+        float[] viewInv = new float[16];
+        Matrix.invertM(viewInv, 0, camViewProj, 0);
+//        final float scaleX = 1.0f / viewInv[0], scaleY = 1.f / viewInv[5], scaleZ = 1.f / viewInv[11];
+//        final float nearX = scaleX * near, nearY = scaleY * near, farX = scaleX * far, farY = scaleY * far, nearZ = scaleZ * near, farZ = scaleZ * far;
+/*        float[][] cube = new float[][] {
+            {-nearX, nearY, near, 1}, {nearX, nearY, near, 1}, {nearX, -nearY, near, 1}, {-nearX, -nearY, near, 1},
+                {-farX, farY, far, 1}, {farX, farY, far, 1}, {farX, -farY, far, 1}, {-farX, -farY, far, 1}
+        };*/
+//        near = 3;
+/*        float[][] cube = new float[][] {
+                {-near, near, -near, 1}, {near, near, -near, 1}, {near, -near, -near, 1}, {-near, -near, -near, 1},
+                {-near, near, near, 1}, {near, near, near, 1}, {near, -near, near, 1}, {-near, -near, near, 1}
+        };*/
+        aspectRatio = 1/aspectRatio;
+        final float nx = near * (float)Math.tan(Math.toRadians(fov / 2)), ny = near * (float)Math.tan(Math.toRadians(fov * aspectRatio / 2)),
+        fx = far * (float)Math.tan(Math.toRadians(fov / 2)), fy = far * (float)Math.tan(Math.toRadians(fov * aspectRatio / 2));
+        float[][] cube = new float[][] {
+                {-nx, ny, near, 1}, {nx, ny, near, 1}, {nx, -ny, near, 1}, {-nx, -ny, near, 1},
+                {-fx, fy, far, 1}, {fx, fy, far, 1}, {fx, -fy, far, 1}, {-fx, -fy, far, 1}
+        };
+        float[] lightView = new float[16];
+        float[] direction = GLM.normalize(GLM.subtract(center, lightPos));
+        float[] right = GLM.normalize(GLM.cross(direction, new float[]{0, 1, 0}));
+        float[] up = GLM.normalize(GLM.cross(direction, right));
+        Matrix.setLookAtM(lightView, 0, lightPos[0], lightPos[1], lightPos[2], center[0], center[1], center[2], up[0], up[1], up[0]);
+ //       Matrix.setLookAtM(lightView, 0, lightPos[0], lightPos[1], lightPos[2], center[0], center[1], center[2], 0, 1, 0);
+        for(int i = 0; i < 8; ++i){
+            float[] copy = GLM.copy(cube[i]);
+            float[] out = new float[4];
+            Matrix.multiplyMV(out, 0, viewInv, 0, copy, 0);
+            out = GLM.scale(out, 1.f / out[3]);
+            Matrix.multiplyMV(cube[i], 0, lightView, 0, copy, 0);
+        }
+        float orthoRight = Integer.MIN_VALUE, orthoUp = Integer.MIN_VALUE, orthoLeft = Integer.MAX_VALUE, orthoDown = Integer.MAX_VALUE, orthoNear = Integer.MAX_VALUE, orthoFar = Integer.MIN_VALUE;
+        for(int i = 0; i < 8; ++i){
+            float x;
+            if(cube[i][0] > orthoRight){
+                orthoRight = cube[i][0];
+            }
+            if(cube[i][1] > orthoUp){
+                orthoUp = cube[i][1];
+            }
+            if(cube[i][0] < orthoLeft){
+                orthoLeft = cube[i][0];
+            }
+            if(cube[i][1] < orthoDown){
+                orthoDown = cube[i][1];
+            }
+            if(Math.abs(cube[i][2]) < orthoNear){
+                orthoNear = Math.abs(cube[i][2]);
+            }
+            if(Math.abs(cube[i][2]) > orthoFar){
+                orthoFar = Math.abs(cube[i][2]);
+            }
+        }
+/*        float[][] objBounds = new float[][] {{-.025f, -.010439033f, -.033333335f, 1.0f}, {0.025f, 0.0019883872f, 0.0333333335f, 1.f}};
+        objBounds[0] = GLM.scale(objBounds[0], 100f);
+        objBounds[1] = GLM.scale(objBounds[1], 100f);
+        float[] out = new float[4];
+        float[] out2 = new float[4];
+        Matrix.multiplyMV(out, 0, lightView, 0, objBounds[0], 0);
+        Matrix.multiplyMV(out2, 0, lightView, 0, objBounds[1], 0);
+        orthoLeft = Math.min(out[0], out2[0]); orthoRight = Math.max(out[0], out2[0]); orthoDown = Math.min(out[1], out2[1]); orthoUp = Math.max(out[1], out2[1]); orthoNear = Math.min(out[2], out2[2]); orthoFar = Math.max(out[2], out2[2]);
+*/
+        float[] shadowProj = new float[16];
+        Matrix.orthoM(shadowProj, 0, orthoLeft, orthoRight, orthoDown, orthoUp, 5, 30);
+//        Matrix.orthoM(shadowProj, 0, -10, 10, -5, 5, 5, 30);
+        float[] shadowViewProj = new float[16];
+        Matrix.multiplyMM(shadowViewProj, 0, shadowProj, 0, lightView, 0);
+        return shadowViewProj;
     }
 }
 

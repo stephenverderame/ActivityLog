@@ -5,11 +5,32 @@ import android.content.res.Resources;
 import android.opengl.GLES30;
 import android.util.Log;
 
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStreamReader;
+
 public class GLShader implements Destructor {
     private int program, vertex, fragment, geometry;
     public GLShader(Resources ctx, int vertexResourceId, int fragmentResourceId) {
-        String vertexCode = ctx.getString(vertexResourceId);
-        String fragmentCode = ctx.getString(fragmentResourceId);
+        String vertexCode = null, fragmentCode = null;
+        StringBuilder codeBuilder = new StringBuilder();
+        try(BufferedReader reader = new BufferedReader(new InputStreamReader(ctx.openRawResource(vertexResourceId)))){
+            String line;
+            while((line = reader.readLine()) != null)
+                codeBuilder.append(line).append('\n');
+            vertexCode = codeBuilder.toString();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        codeBuilder = new StringBuilder();
+        try(BufferedReader reader = new BufferedReader(new InputStreamReader(ctx.openRawResource(fragmentResourceId)))){
+            String line;
+            while((line = reader.readLine()) != null)
+                codeBuilder.append(line).append('\n');
+            fragmentCode = codeBuilder.toString();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
         vertex = GLES30.glCreateShader(GLES30.GL_VERTEX_SHADER);
         GLES30.glShaderSource(vertex, vertexCode);
         GLES30.glCompileShader(vertex);

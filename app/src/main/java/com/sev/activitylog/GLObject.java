@@ -20,6 +20,8 @@ import java.nio.IntBuffer;
 import java.util.LinkedList;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 public abstract class GLObject implements Destructor {
     protected float[] model = new float[16];
@@ -316,8 +318,8 @@ class Terrain extends GLObject {
         GLES30.glTexParameteri(GLES30.GL_TEXTURE_2D, GLES30.GL_TEXTURE_WRAP_T, GLES30.GL_CLAMP_TO_EDGE);
         GLUtils.texImage2D(GLES30.GL_TEXTURE_2D, 0, this.texture, 0);
         Log.e("Terrain", String.valueOf(GLES30.glGetError()));
-//        GLES30.glGenerateMipmap(GLES30.GL_TEXTURE_2D);
         GLES30.glBindTexture(GLES30.GL_TEXTURE_2D, 0);
+
     }
     @Override
     public void draw(GLRendererShaderManager shaders) {
@@ -380,13 +382,14 @@ class Terrain extends GLObject {
                 FloatBuffer debugFb = debug.asFloatBuffer();
 
 
-                Pos first = heightMap[0][0];
-                float[] firstVector = first.toVec3f();
+                Pos center = new Pos((heightMap[0][0].lat + heightMap[heightMap.length - 1][heightMap[0].length - 1].lat) / 2,
+                        (heightMap[0][0].lon + heightMap[heightMap.length - 1][heightMap[0].length - 1].lon) / 2, heightMap[0][0].elevation);
+                float[] firstVector = center.toVec3f();
                 for(int i = 0; i < heightMap.length; ++i){ //latitude (y) --> really z
                     for(int j = 0; j < heightMap[0].length; ++j){ //longitude (x)
-                        fb.put((float)(heightMap[i][j].lon - first.lon));
-                        fb.put((float)(heightMap[i][j].elevation - first.elevation)); //about 60 miles per latitude
-                        fb.put((float)(heightMap[i][j].lat - first.lat));
+                        fb.put((float)(heightMap[i][j].lon - center.lon));
+                        fb.put((float)(heightMap[i][j].elevation - center.elevation)); //about 60 miles per latitude
+                        fb.put((float)(heightMap[i][j].lat - center.lat));
                         fb.put(1.f - (float)j / (heightMap[0].length - 1)); //tex coords
                         fb.put(1.f - (float)i / (heightMap.length - 1));
                         //calc normal
@@ -404,10 +407,11 @@ class Terrain extends GLObject {
                             normal = GLM.negate(normal);
                         fb.put(GLM.normalize(normal));
 
-                        debugFb.put((float)(heightMap[i][j].lon - first.lon));
-                        debugFb.put((float)(heightMap[i][j].elevation - first.elevation));
-                        debugFb.put((float)(heightMap[i][j].lat - first.lat));
+                        debugFb.put((float)(heightMap[i][j].lon - center.lon));
+                        debugFb.put((float)(heightMap[i][j].elevation - center.elevation));
+                        debugFb.put((float)(heightMap[i][j].lat - center.lat));
                         debugFb.put(normal);
+
 
 
                     }

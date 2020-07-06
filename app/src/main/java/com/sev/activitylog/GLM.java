@@ -60,4 +60,34 @@ public class GLM {
         }
         return out;
     }
+    static boolean equals(final float[] a, final float[] b) {
+        assert (a.length == b.length);
+        for (int i = 0; i < a.length; ++i){
+            if (a[i] != b[i]) {
+                return false;
+            }
+        }
+        return true;
+    }
+    static float dist(final float[] a, final float[] b){
+        final float[] c = subtract(a, b);
+        return length(c);
+    }
+    static float[] copy(final float[] a){
+        float[] b = new float[a.length];
+        for(int i = 0; i < a.length; ++i)
+            b[i] = a[i];
+        return b;
+    }
+    static float[] resize(final float[] a, int size, float defaultValue){
+        if(a.length == size) return a;
+        else{
+            float[] b = new float[size];
+            for(int i = 0; i < size; ++i){
+                if(i < a.length) b[i] = a[i];
+                else b[i] = defaultValue;
+            }
+            return b;
+        }
+    }
 }
