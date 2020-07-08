@@ -19,18 +19,14 @@ import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Date;
 import java.util.LinkedList;
+import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 public class RecentActivityAdapter extends RecyclerView.Adapter<RecentActivityAdapter.CardListViewHolder> implements Subject {
-    private LinkedList<RideOverview> data;
+    private List<RideOverview> data;
     private LinkedList<Observer> observers;
-    public RecentActivityAdapter(LinkedList<RideOverview> data){
+    public RecentActivityAdapter(List<RideOverview> data){
         this.data = data;
-        observers = new LinkedList<>();
-    }
-    public RecentActivityAdapter(ArrayList<RideOverview> data){
-        this.data = new LinkedList<RideOverview>();
-        this.data.addAll(data);
         observers = new LinkedList<>();
     }
     @NonNull
@@ -55,7 +51,7 @@ public class RecentActivityAdapter extends RecyclerView.Adapter<RecentActivityAd
             Log.d("ADAPTER", "Click!");
             Log.d("ADAPTER", String.valueOf(observers.size()));
             for(Observer o : observers){
-                o.notify(new ObserverEventArgs(ObserverNotifications.ACTIVITY_SELECT_NOTIFY, data.get(position).getId(), v));
+                o.notify(new ObserverEventArgs(ObserverNotifications.ACTIVITY_SELECT_NOTIFY, data.get(position), v));
             }
         });
 
@@ -93,34 +89,44 @@ class WeekViewAdapter extends RecyclerView.Adapter<WeekViewAdapter.WeekViewHolde
     private long totalDays;
     private int numWeeks;
     private int latestDayOfWeek, firstDayOfWeek;
-    private LinkedList<RideOverview> rides;
+    private List<RideOverview> rides;
     private LinkedList<Observer> observers;
-    public WeekViewAdapter(LinkedList<RideOverview> rides){
+    private boolean inited;
+    public WeekViewAdapter(List<RideOverview> rides){
         list = new ArrayList<BasicRideData>();
         observers = new LinkedList<>();
         this.rides = rides;
+        inited = false;
     }
-    public void init(){
-        int j = 0;
-        list.add(new BasicRideData(rides.get(0)));
-        for(int i = 1; i < rides.size(); ++i){
-            RideOverview prev = rides.get(i);
-            if(isSameDay(rides.get(i - 1).getDate().getTime(), prev.getDate().getTime())){
-                list.set(j, list.get(j).add(rides.get(i)));
-            }else{
-                list.add(new BasicRideData(rides.get(i)));
-                ++j;
-            }
 
+    /**
+     * Initializes week adapter
+     * requires that all the ride data is loaded
+     */
+    public void init(){
+        if(!inited && list.size() >= 1) {
+            int j = 0;
+            list.add(new BasicRideData(rides.get(0)));
+            for (int i = 1; i < rides.size(); ++i) {
+                RideOverview prev = rides.get(i);
+                if (isSameDay(rides.get(i - 1).getDate().getTime(), prev.getDate().getTime())) {
+                    list.set(j, list.get(j).add(rides.get(i)));
+                } else {
+                    list.add(new BasicRideData(rides.get(i)));
+                    ++j;
+                }
+
+            }
+            long timeBetween = System.currentTimeMillis() - rides.get(rides.size() - 1).getDate().getTime();
+            totalDays = TimeUnit.DAYS.convert(timeBetween, TimeUnit.MILLISECONDS);
+            numWeeks = (int) Math.ceil(totalDays / 7.f);
+            Calendar now = Calendar.getInstance();
+            now.setTime(new Date()); //sets dat to now
+            latestDayOfWeek = (now.get(Calendar.DAY_OF_WEEK) + 5) % 7; //convert Sunday (1) to Saturday (7) to Monday (0) to Sunday (7)
+            now.setTime(rides.get(rides.size() - 1).getDate());
+            firstDayOfWeek = (now.get(Calendar.DAY_OF_WEEK) + 5) % 7;
+            inited = true;
         }
-        long timeBetween = System.currentTimeMillis() - rides.get(rides.size() - 1).getDate().getTime();
-        totalDays = TimeUnit.DAYS.convert(timeBetween, TimeUnit.MILLISECONDS);
-        numWeeks = (int)Math.ceil(totalDays / 7.f);
-        Calendar now = Calendar.getInstance();
-        now.setTime(new Date()); //sets dat to now
-        latestDayOfWeek = (now.get(Calendar.DAY_OF_WEEK) + 5) % 7; //convert Sunday (1) to Saturday (7) to Monday (0) to Sunday (7)
-        now.setTime(rides.get(rides.size() - 1).getDate());
-        firstDayOfWeek = (now.get(Calendar.DAY_OF_WEEK) + 5) % 7;
     }
     @NonNull
     @Override

@@ -12,6 +12,7 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.PrintStream;
 import java.io.PrintWriter;
+import java.io.Serializable;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.ArrayList;
@@ -22,7 +23,7 @@ import java.util.concurrent.Future;
 
 import javax.net.ssl.HttpsURLConnection;
 
-public class Pos {
+public class Pos implements Serializable {
     public double lat, lon;
     public double elevation;
     public Pos() {};

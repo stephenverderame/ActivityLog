@@ -10,7 +10,11 @@
             android:layout_width="match_parent"
             android:layout_height="match_parent"
             android:orientation="vertical">
-
+            <androidx.appcompat.widget.Toolbar android:id="@id/detailToolbar"
+                android:layout_width="match_parent" android:layout_height="?android:attr/actionBarSize"
+                android:background="?android:attr/colorPrimary" android:elevation="4dp"
+                android:theme="@style/ThemeOverlay.AppCompat.ActionBar"
+                app:popupTheme="@style/Theme.AppCompat.Light"/>
             <ProgressBar
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
@@ -22,6 +26,8 @@
                 android:gravity="center"
                 android:text="Loading..."
                 android:id="@+id/loadingText"/>
+            <com.sev.activitylog.FilterView android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:id="@+id/filterView"/>
             <androidx.recyclerview.widget.RecyclerView
                 android:scrollbars="vertical"
                 android:layout_width="match_parent"

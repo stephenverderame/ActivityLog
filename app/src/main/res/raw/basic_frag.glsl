@@ -42,7 +42,7 @@ void main(){
     vec3 normal = normalize(norm);
     float diffFactor = max(dot(normal, lightDir), 0.1);
     vec3 diffuseLighting = diffFactor * sun.color * sun.diffFac;
-    if(diffuseColor.rgb == vec3(1, 0, 0)) diffuseLighting += diffuseColor.rgb;
+    if(diffuseColor.r > 0.8 && diffuseColor.g < 0.2 && diffuseColor.b < 0.2) diffuseLighting += diffuseColor.rgb;
 
     vec3 reflectDirection = normalize(lightDir + normalize(eyePos - fragPos));
     float spec = pow(max(dot(normal, reflectDirection), 0.0), 8.0);

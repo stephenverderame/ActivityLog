@@ -17,7 +17,7 @@ import android.view.View;
 import java.util.LinkedList;
 
 /**
- * TODO: document your custom view class.
+ * Displays ride metrics in a grid layout on a round rect background
  */
 public class ActivityView extends View implements Subject {
     private String title, subtitle;
@@ -29,8 +29,8 @@ public class ActivityView extends View implements Subject {
     private Paint paint;
 
     private int x, y, w, h;
-    private int pl, pr, pb, pt;
-    private float gridX, gridY;
+    private int pl, pr, pb, pt; //padding left, right, bottom, top
+    private float gridX, gridY; //width and height of each grid cell
     private float dp2pxFactor;
 
     private Map img;
@@ -56,7 +56,7 @@ public class ActivityView extends View implements Subject {
     }
 
     private void init(AttributeSet attrs, int defStyle) {
-        // Load attributes
+        // Load attributes from xml (Optional)
         fnt = new ActivityViewFont();
         final TypedArray a = getContext().obtainStyledAttributes(
                 attrs, R.styleable.ActivityView, defStyle, 0);
@@ -112,7 +112,7 @@ public class ActivityView extends View implements Subject {
         bg.draw(canvas);
         textPaint.setTextSize(fnt.titleSize * dp2pxFactor);
         textPaint.setColor(Color.BLACK);
-        float space = TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 8, getResources().getDisplayMetrics());
+        float space = TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 8, getResources().getDisplayMetrics()); //converts 8dip to px
         final Paint.FontMetrics fm = textPaint.getFontMetrics();
         final float titlelineHeight = fm.bottom - fm.top + fm.leading;
         if(title != null) {

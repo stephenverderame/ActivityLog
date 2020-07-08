@@ -6,6 +6,7 @@ import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
+import java.io.BufferedInputStream;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
@@ -14,12 +15,14 @@ import java.net.ProtocolException;
 import java.net.URL;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
+import java.util.ArrayList;
 import java.util.Date;
 import java.util.LinkedList;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import javax.net.ssl.HttpsURLConnection;
 
@@ -27,10 +30,12 @@ public class StravaModel extends RideModel {
     private OAuth auth;
     private ExecutorService executor;
     private LinkedList<Observer> observers;
+    private UniqueList<String> gearIds;
     public StravaModel(OAuth authentication){
         auth = authentication;
         executor = Executors.newSingleThreadExecutor();
         observers = new LinkedList<>();
+        gearIds = new UniqueList<>();
     }
     @Override
     public Future<LinkedList<RideOverview>> getRides(final long startDate) {
@@ -70,6 +75,7 @@ public class StravaModel extends RideModel {
                                     for (int i = 0; i < ridesJson.length(); ++i) {
                                         JSONObject ride = ridesJson.getJSONObject(i);
                                         RideOverview r = new RideOverview(ride);
+                                        gearIds.add(r.getGearId());
 //                                    Log.d("OVERVIEWS", "Read " + r.getName());
                                         if(startDate != 0 ) buffer.push(r);
                                         else buffer.add(r);
@@ -150,6 +156,51 @@ public class StravaModel extends RideModel {
                 return ride;
             }
         });
+    }
+
+    @Override
+    public Future<ArrayList<Gear>> getGear(AtomicBoolean incompleteFlag) {
+        return executor.submit(new Callable<ArrayList<Gear>>() {
+            @Override
+            public ArrayList<Gear> call() {
+                ArrayList<Gear> gears = new ArrayList<>();
+                for(String id : gearIds){
+                    try {
+                        URL url = new URL("https://www.strava.com/api/v3/gear/" + id);
+                        HttpsURLConnection con = (HttpsURLConnection)url.openConnection();
+                        con.setDoOutput(false);
+                        con.setDoInput(true);
+                        con.setRequestMethod("GET");
+                        con.setRequestProperty("Accept", "application/json");
+                        con.setRequestProperty("Authorization", "Bearer " + auth.getAuthToken().getAccessToken());
+                        con.setRequestProperty("Host", "www.strava.com");
+                        con.connect();
+                        if(con.getResponseCode() == 200){
+                            Log.d("Strava", "Got Gear");
+                            try(BufferedReader reader = new BufferedReader(new InputStreamReader(con.getInputStream()))){
+                                String line, json = new String();
+                                while((line = reader.readLine()) != null)
+                                    json += line;
+                                gears.add(new Gear(new JSONObject(json)));
+                            } catch (JSONException e) {
+                                e.printStackTrace();
+                            }
+                        }else
+                            Log.e("Strava", "Failed to get gear with id " + id);
+                    } catch (MalformedURLException e) {
+                        e.printStackTrace();
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
+                }
+                incompleteFlag.set(false);
+                return gears;
+            }
+        });
+    }
+    public void addGearIds(ArrayList<Gear> ids){
+        for(Gear i : ids)
+            gearIds.add(i.gearId);
     }
 
 

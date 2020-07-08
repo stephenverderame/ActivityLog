@@ -1,18 +1,23 @@
 package com.sev.activitylog;
 
+import android.graphics.Bitmap;
+
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
+import java.io.Serializable;
 import java.text.ParseException;
 import java.util.ArrayList;
 
-public class DetailedRide {
-    private RideOverview basicInfo;
+public class DetailedRide implements Serializable {
+    private transient RideOverview basicInfo; //already saved in other database
     private String polyline;
     private String description;
     private String gearName;
     private Pos start, end;
+    private MapImage img;
+    private Pos[][] heightMap;
     public DetailedRide(JSONObject ride) throws JSONException, ParseException {
         init(ride);
     }
@@ -37,4 +42,10 @@ public class DetailedRide {
     public String getGearName() {return gearName;}
     public String getDesc() {return description;}
     public ArrayList<Pos> getRoute() {return Pos.decodePolyline(polyline, 5);}
+
+    public MapImage getImg() {return img;}
+    public Pos[][] getHeightMap() {return heightMap;}
+    public void setImg(MapImage bmp) {img = bmp;}
+    public void setHeightMap(Pos[][] hm) {heightMap = hm;}
+    public void setOverview(RideOverview ov) {basicInfo = ov;}
 }

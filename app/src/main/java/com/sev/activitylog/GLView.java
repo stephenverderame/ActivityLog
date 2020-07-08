@@ -7,7 +7,6 @@ import android.opengl.GLSurfaceView;
 import android.opengl.Matrix;
 import android.util.Log;
 import android.view.MotionEvent;
-import android.view.View;
 
 import java.util.HashMap;
 import java.util.LinkedList;
@@ -20,7 +19,7 @@ import javax.microedition.khronos.opengles.GL10;
 interface Destructor {
     public void destructor();
 }
-public class GLView extends GLSurfaceView implements Subject {
+public class GLView extends GLSurfaceView implements Subject, Destructor {
     private final GLRenderer renderer;
     private LinkedList<Observer> obs;
     public GLView(Context context) {
@@ -35,17 +34,17 @@ public class GLView extends GLSurfaceView implements Subject {
         });
         setRenderer(renderer);
         obs = new LinkedList<>();
-        setRenderMode(GLSurfaceView.RENDERMODE_WHEN_DIRTY);
+//        setRenderMode(GLSurfaceView.RENDERMODE_WHEN_DIRTY);
 
 
     }
-    @Override
+/*    @Override
     public void onVisibilityChanged(View v, int vis){
         super.onVisibilityChanged(v, vis);
         if(vis == 8){ //when view is invisible
             renderer.destructor();
         }
-    }
+    }*/
     @Override
     public boolean onTouchEvent(MotionEvent e){
         for(Observer o : obs)
@@ -74,6 +73,11 @@ public class GLView extends GLSurfaceView implements Subject {
     public void detach(Observer observer) {
         obs.remove(observer);
     }
+
+    @Override
+    public void destructor() {
+        renderer.destructor();
+    }
 }
 class GLRenderer implements GLSurfaceView.Renderer, Destructor {
 
@@ -92,11 +96,11 @@ class GLRenderer implements GLSurfaceView.Renderer, Destructor {
         this.res = res;
         onGlLoaded = r;
         renderPasses = new LinkedList<>();
+        shaders = new GLRendererShaderManager();
 
     }
     @Override
     public void onSurfaceCreated(GL10 gl10, EGLConfig eglConfig) { //when gl is initialized - called once
-        shaders = new GLRendererShaderManager();
         shaders.setShader(res.getInteger(R.integer.basic_shader_id), new GLShader(res, R.raw.basic_vertex, R.raw.basic_frag));
         shaders.setShader(res.getInteger(R.integer.sky_shader_id), new GLShader(res, R.raw.skybox_vert, R.raw.skybox_frag));
         shaders.setShader(res.getInteger(R.integer.debug_shader_id), new GLShader(res, R.raw.debug_vert, R.raw.debug_frag));
@@ -136,7 +140,7 @@ class GLRenderer implements GLSurfaceView.Renderer, Destructor {
 
     }
     private void updateViewProjMat() {
-        view = cam.getMat();
+        view = cam.getView();
         proj = cam.getProj();
         Matrix.multiplyMM(viewProj, 0, proj, 0, view, 0);
         GLShader skybox = shaders.getShader(res.getInteger(R.integer.sky_shader_id));
@@ -166,6 +170,7 @@ class GLRenderer implements GLSurfaceView.Renderer, Destructor {
     public void setScene(GLSceneComposite scene){
         this.scene = scene;
     }
+    //Code to be run on ever frame
     public void setDrawLogic(Runnable run){
         this.drawLogic = run;
     }
@@ -207,11 +212,12 @@ class GLRendererShaderManager implements Destructor {
 }
 class  GLCamera {
     public static final float[] UP_VECTOR = {0, 1, 0};
+    private static float viewNear = 0.5f;
     private float[] position, direction, right, localUp;
     float yaw, pitch, fov, aspect, viewDistance;
     private float[] view, proj;
     private boolean dirtyBit, dirtyAngle, dirtyProj;
-    public float[] getMat(){
+    public float[] getView(){
         if(dirtyBit || dirtyAngle){
             if(dirtyAngle){
                 updateVectors();
@@ -225,7 +231,7 @@ class  GLCamera {
     }
     public float[] getProj(){
         if(dirtyProj){
-            Matrix.perspectiveM(proj, 0, fov, aspect, 0.5f, viewDistance);
+            Matrix.perspectiveM(proj, 0, fov, aspect, viewNear, viewDistance);
             dirtyProj = false;
         }
         return proj;
@@ -243,7 +249,7 @@ class  GLCamera {
         dirtyAngle = false;
         dirtyProj = false;
         fov = 90;
-        viewDistance = 50;
+        viewDistance = 20;
     }
     public GLCamera(float[] eye, float yaw, float pitch) {
         view = new float[16];
@@ -334,6 +340,8 @@ class  GLCamera {
             this.viewDistance = viewDistance;
         dirtyProj = true;
     }
+    public float getViewDistance() {return viewDistance;}
+    public float getNearPlane() {return viewNear;}
 
 }
 abstract class GLRenderPass implements Destructor {
@@ -418,7 +426,7 @@ class GLShadowPass extends GLRenderPass {
 
     @Override
     public void draw(GLSceneComposite scene, GLRendererShaderManager sm, int index, GLRenderer renderer) {
-        viewProj = computeShadowFrustrum(renderer.getCam().getMat(), caster.getPos(), center, 1f, 3f, renderer.getCam().getFov(), renderer.aspectRatio());
+        viewProj = computeShadowFrustrum(renderer.getCam().getView(), caster.getPos(), center, /*renderer.getCam().getNearPlane(), renderer.getCam().getViewDistance(), renderer.getCam().getFov(),*/ 0.1f, 3f,  45, renderer.aspectRatio());
         GLShader shader = sm.getShader(rs.getInteger(R.integer.basic_shader_id));
         shader.use();
         shader.setMat4("lightSpaceMatrix", viewProj);
@@ -438,9 +446,10 @@ class GLShadowPass extends GLRenderPass {
     public void setCenter(float[] center){
         this.center = center;
     }
+    //based off CSM - compute tight fitting light frustrums. Only using one cascade here
     float[] computeShadowFrustrum(float[] camViewProj, float[] lightPos, float[] center, float near, float far, float fov, float aspectRatio){
-        lightPos = new float[] {-10, 1, 0};
-        fov = 45;
+        lightPos = new float[] {-10, 3, 0}; //manual placement to get shadows
+//        fov = 45;
  //       near = 2;
         float[] viewInv = new float[16];
         Matrix.invertM(viewInv, 0, camViewProj, 0);
@@ -455,20 +464,20 @@ class GLShadowPass extends GLRenderPass {
                 {-near, near, -near, 1}, {near, near, -near, 1}, {near, -near, -near, 1}, {-near, -near, -near, 1},
                 {-near, near, near, 1}, {near, near, near, 1}, {near, -near, near, 1}, {-near, -near, near, 1}
         };*/
-        aspectRatio = 1/aspectRatio;
+/*        aspectRatio = 1/aspectRatio;
         final float nx = near * (float)Math.tan(Math.toRadians(fov / 2)), ny = near * (float)Math.tan(Math.toRadians(fov * aspectRatio / 2)),
         fx = far * (float)Math.tan(Math.toRadians(fov / 2)), fy = far * (float)Math.tan(Math.toRadians(fov * aspectRatio / 2));
         float[][] cube = new float[][] {
                 {-nx, ny, near, 1}, {nx, ny, near, 1}, {nx, -ny, near, 1}, {-nx, -ny, near, 1},
                 {-fx, fy, far, 1}, {fx, fy, far, 1}, {fx, -fy, far, 1}, {-fx, -fy, far, 1}
-        };
+        };*/
         float[] lightView = new float[16];
         float[] direction = GLM.normalize(GLM.subtract(center, lightPos));
         float[] right = GLM.normalize(GLM.cross(direction, new float[]{0, 1, 0}));
         float[] up = GLM.normalize(GLM.cross(direction, right));
         Matrix.setLookAtM(lightView, 0, lightPos[0], lightPos[1], lightPos[2], center[0], center[1], center[2], up[0], up[1], up[0]);
  //       Matrix.setLookAtM(lightView, 0, lightPos[0], lightPos[1], lightPos[2], center[0], center[1], center[2], 0, 1, 0);
-        for(int i = 0; i < 8; ++i){
+ /*       for(int i = 0; i < 8; ++i){
             float[] copy = GLM.copy(cube[i]);
             float[] out = new float[4];
             Matrix.multiplyMV(out, 0, viewInv, 0, copy, 0);
@@ -507,7 +516,8 @@ class GLShadowPass extends GLRenderPass {
         orthoLeft = Math.min(out[0], out2[0]); orthoRight = Math.max(out[0], out2[0]); orthoDown = Math.min(out[1], out2[1]); orthoUp = Math.max(out[1], out2[1]); orthoNear = Math.min(out[2], out2[2]); orthoFar = Math.max(out[2], out2[2]);
 */
         float[] shadowProj = new float[16];
-        Matrix.orthoM(shadowProj, 0, orthoLeft, orthoRight, orthoDown, orthoUp, 5, 30);
+//        Matrix.orthoM(shadowProj, 0, orthoLeft, orthoRight, orthoDown, orthoUp, 5, 30);
+        Matrix.orthoM(shadowProj, 0, -10, 10, -3, 3, 7, 30);
 //        Matrix.orthoM(shadowProj, 0, -10, 10, -5, 5, 5, 30);
         float[] shadowViewProj = new float[16];
         Matrix.multiplyMM(shadowViewProj, 0, shadowProj, 0, lightView, 0);

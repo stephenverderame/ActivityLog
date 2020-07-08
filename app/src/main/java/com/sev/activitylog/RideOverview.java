@@ -11,8 +11,9 @@ import java.text.SimpleDateFormat;
 import java.util.Date;
 
 public class RideOverview implements Serializable {
-    public static transient final double METERS_MILES_CONVERSION = 0.000621371;
+    public static transient final double METERS_MILES_CONVERSION = 0.000621371; //this data isn't serialized
     public static transient final double METERS_FEET_CONVERSION = 3.28084;
+
     private double distance, climbed;
     private int time, totalTime;
     private String name;
@@ -44,6 +45,7 @@ public class RideOverview implements Serializable {
         if (ride.has("kilojoules"))
             setKJ((float) ride.getDouble("kilojoules"));
         setActivityType(ride.getString("type"));
+        gearId = ride.getString("gear_id");
     }
     public void setMovingTime(int time) {
         this.time = time;
@@ -77,5 +79,43 @@ public class RideOverview implements Serializable {
     public float getPower() {return avgWatts;}
     public int getTotalTime() {return totalTime;}
 
+    public boolean doesApply(SearchFilters filter){
+        if(!filter.isDefaultValue(filter.name) && !name.toLowerCase().contains(filter.name.toLowerCase())) return false;
+        if(!filter.isDefaultValue(filter.start) && filter.start.after(date)) return false;
+        if(!filter.isDefaultValue(filter.end) && filter.end.before(date)) return false;
+        if(!filter.isDefaultValue(filter.gear) && filter.gear.toLowerCase() != gearId.toLowerCase()) return false;
+        if(!filter.isDefaultValue(filter.workoutType) && filter.workoutType != activityType) return false;
 
+        if(!filter.isDefaultValue(filter.maxDist) && filter.maxDist < distance) return false;
+        if(!filter.isDefaultValue(filter.minDist) && filter.minDist > distance) return false;
+        if(!filter.isDefaultValue(filter.maxElevation) && filter.maxElevation < climbed) return false;
+        if(!filter.isDefaultValue(filter.minElevation) && filter.minElevation > climbed) return false;
+        if(!filter.isDefaultValue(filter.maxSpeed) && filter.maxSpeed < averageSpeed) return false;
+        if(!filter.isDefaultValue(filter.minSpeed) && filter.minSpeed > averageSpeed) return false;
+        if(!filter.isDefaultValue(filter.maxTime) && filter.maxTime < time) return false;
+        if(!filter.isDefaultValue(filter.minTime) && filter.minTime > time) return false;
+        if(!filter.isDefaultValue(filter.maxPow) && filter.maxPow < avgWatts) return false;
+        if(!filter.isDefaultValue(filter.minPow) && filter.minPow > avgWatts) return false;
+        return true;
+    }
+
+
+}
+
+class Gear implements Serializable {
+    public String gearId, gearName;
+    public double totalDistance;
+    public String brand, model, description;
+    public Gear(){};
+    public Gear(String gearId){
+        this.gearId = gearId;
+    }
+    public Gear(JSONObject obj) throws JSONException {
+        gearName = obj.getString("name");
+        totalDistance = obj.getDouble("distance");
+        brand = obj.getString("brand_name");
+        model = obj.getString("model_name");
+        description = obj.getString("description");
+        gearId = obj.getString("id");
+    }
 }

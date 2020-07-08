@@ -1,3 +1,54 @@
 <resources>
     <string name="app_name">Activity Log</string>
+    <string-array name="true_false_list">
+        <item>Both</item>
+        <item>False</item>
+        <item>True</item>
+    </string-array>
+    <string-array name="workout_type_list">
+        <item>All</item>
+        <item>No</item>
+        <item>Race</item>
+        <item>Workout</item>
+    </string-array>
+    <string-array name="activity_type_list">
+        <item>All</item>
+        <item>AlpineSki</item>
+        <item>BackcountrySki</item>
+        <item>Canoeing</item>
+        <item>Crossfit</item>
+        <item>EBikeRide</item>
+        <item>Elliptical</item>
+        <item>Golf</item>
+        <item>Handcycle</item>
+        <item>Hike</item>
+        <item>IceSkate</item>
+        <item>InlineSkate</item>
+        <item>Kayaking</item>
+        <item>Kitesurf</item>
+        <item>NordicSki</item>
+        <item>Ride</item>
+        <item>RockClimbing</item>
+        <item>RollerSki</item>
+        <item>Rowing</item>
+        <item>Run</item>
+        <item>Sail</item>
+        <item>Skateboard</item>
+        <item>Snowboard</item>
+        <item>Snowshoe</item>
+        <item>Soccer</item>
+        <item>StairStepper</item>
+        <item>StandUpPaddling</item>
+        <item>Surfing</item>
+        <item>Swim</item>
+        <item>>Velomobile</item>
+        <item>VirtualRide</item>
+        <item>VirtualRun</item>
+        <item>Walk</item>
+        <item>WeightTraining</item>
+        <item>Wheelchair</item>
+        <item>Windsurf</item>
+        <item>Workout</item>
+        <item>Yoga</item>
+    </string-array>
 </resources>

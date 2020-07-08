@@ -23,6 +23,7 @@ import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.URL;
 import java.util.LinkedList;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import javax.net.ssl.HttpsURLConnection;
 
@@ -37,11 +38,12 @@ public class OAuth implements Subject, Runnable {
     public static final int CLIENT_ID = 34668;
     public static final String CLIENT_SECRET = "0a01bd0adee247b04f2605a7d78ffc5f11a9ed93";
     private String authCode;
-    private boolean authComplete;
+    private AtomicBoolean authenticating, authComplete;
     private LinkedList<Observer> observers;
     private AuthToken token;
     public OAuth(AuthToken token){
-        authComplete = false;
+        authComplete = new AtomicBoolean(false);
+        authenticating = new AtomicBoolean(false);
         observers = new LinkedList<Observer>();
         this.token = token;
     }
@@ -52,18 +54,19 @@ public class OAuth implements Subject, Runnable {
      * This server collects the auth code from the user to be used to get an access token in step 2.
      * @return success boolean
      */
-    public boolean authenticateStep1() {
+    public synchronized boolean authenticateStep1() {
         long secs = System.currentTimeMillis() / 1000;
         if(secs < token.getExpiration() - 3600){
-            authComplete = true;
+            authComplete.set(true);
             return true;
         }else if(token.getRefreshToken() != null){
             if(updateTokens()){
-                authComplete = true;
+                authComplete.set(true);
                 return true;
             }
         }
-        sendNotify(new ObserverEventArgs(ObserverNotifications.URI_NOTIFY, new Intent(Intent.ACTION_VIEW, Uri.parse("https://www.strava.com/oauth/authorize?client_id=" + Integer.toString(CLIENT_ID) + "&scope=activity:read_all&redirect_uri=http://127.0.0.1:8032&response_type=code"))));
+        ObserverHelper.sendToObservers(observers, new ObserverEventArgs(ObserverNotifications.URI_NOTIFY,
+                new Intent(Intent.ACTION_VIEW, Uri.parse("https://www.strava.com/oauth/authorize?client_id=" + Integer.toString(CLIENT_ID) + "&scope=activity:read_all&redirect_uri=http://127.0.0.1:8032&response_type=code"))));
         try (ServerSocket server = new ServerSocket(8032);
              Socket client = server.accept();){
             Log.d("AUTH 1", "Accepted Client");
@@ -111,8 +114,8 @@ public class OAuth implements Subject, Runnable {
      * @return success
      * @see AuthToken
      */
-    public boolean authenticateStep2() {
-        if(authComplete) return true;
+    public synchronized boolean authenticateStep2() {
+        if(authComplete.get()) return true;
         try {
             URL url = new URL("https://www.strava.com/oauth/token");
             StringBuilder query = new StringBuilder();
@@ -149,7 +152,7 @@ public class OAuth implements Subject, Runnable {
                         token.setAccessToken(obj.getString("access_token"));
                         token.setExpiration(obj.getLong("expires_at"));
                         token.setRefreshToken(obj.getString("refresh_token"));
-                        authComplete = true;
+                        authComplete.set(true);
                     } catch (JSONException e) {
                         e.printStackTrace();
                     }
@@ -163,42 +166,38 @@ public class OAuth implements Subject, Runnable {
         } catch (IOException e) {
             e.printStackTrace();
         }
-        return authComplete;
+        return authComplete.get();
     }
 
-    public String getAuthCode(){ return authCode;}
-    public AuthToken getAuthToken() {return token;}
-    public boolean isAuthComplete() {return authComplete;}
+    public synchronized String getAuthCode(){ return authCode;}
+    public synchronized AuthToken getAuthToken() {return token;}
+    public boolean isAuthComplete() {return authComplete.get();}
 
     @Override
     public void attach(Observer observer) {
-        this.observers.add(observer);
+        synchronized (observers) {
+            this.observers.add(observer);
+        }
     }
 
     @Override
     public void detach(Observer observer) {
-        this.observers.remove(observer);
+        synchronized (observers) {
+            this.observers.remove(observer);
+        }
     }
 
     @Override
     public void run() {
-        sendMsgToEventHandlers(authenticateStep1() && authenticateStep2());
+        if(!authenticating.get() && !authComplete.get()) {
+            authenticating.set(true);
+            boolean success = authenticateStep1() && authenticateStep2();
+            authenticating.set(false);
+            ObserverHelper.sendToObservers(observers, new ObserverEventArgs(ObserverNotifications.OAUTH_NOTIFY, OAuth.this, success));
+        }
     }
-    private void sendMsgToEventHandlers(final boolean success){
-        final OAuth param = this;
-        if(success) token.save();
-        new Handler(Looper.getMainLooper()).post(new Runnable(){
-            @Override
-            public void run() {
-                sendNotify(new ObserverEventArgs(ObserverNotifications.OAUTH_NOTIFY, param, success));
-            }
-        });
-    }
-    private void sendNotify(ObserverEventArgs e){
-        for(Observer o : observers)
-            o.notify(e);
-    }
-    private boolean updateTokens()
+    public boolean isAuthenticating() {return authenticating.get();}
+    private synchronized boolean updateTokens()
     {
         boolean success = false;
         try {
@@ -235,7 +234,7 @@ public class OAuth implements Subject, Runnable {
                     token.setAccessToken(json.getString("access_token"));
                     token.setExpiration(json.getLong("expires_at"));
                     token.setRefreshToken(json.getString("refresh_token"));
-                    authComplete = true;
+                    authComplete.set(true);
                     success = true;
                 } catch (JSONException e) {
                     e.printStackTrace();
@@ -270,14 +269,14 @@ class AuthToken implements Parcelable{
         expiration = prefs.getLong(EXPIRATION_ID, 0);
     }
 
-    public String getAccessToken() {return accessToken;}
-    public String getRefreshToken() {return refreshToken;}
-    public long getExpiration() {return expiration;}
-    public void setAccessToken(String tk) {accessToken = tk;}
-    public void setRefreshToken(String tk) {refreshToken = tk;}
-    public void setExpiration(long exp) {expiration = exp;}
-    public boolean isValid() {return System.currentTimeMillis() / 1000 < expiration;}
-    public void save(){
+    public synchronized String getAccessToken() {return accessToken;}
+    public synchronized String getRefreshToken() {return refreshToken;}
+    public synchronized long getExpiration() {return expiration;}
+    public synchronized void setAccessToken(String tk) {accessToken = tk;}
+    public synchronized void setRefreshToken(String tk) {refreshToken = tk;}
+    public synchronized void setExpiration(long exp) {expiration = exp;}
+    public synchronized boolean isValid() {return System.currentTimeMillis() / 1000 < expiration;}
+    public synchronized void save(){
         if(prefs != null) {
             SharedPreferences.Editor edit = prefs.edit();
             edit.putString(ACCESS_TOKEN_ID, accessToken);

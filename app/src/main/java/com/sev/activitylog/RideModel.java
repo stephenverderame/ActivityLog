@@ -1,7 +1,9 @@
 package com.sev.activitylog;
 
+import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.concurrent.Future;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 public abstract class RideModel implements Subject {
 
@@ -15,4 +17,11 @@ public abstract class RideModel implements Subject {
      */
     public abstract Future<LinkedList<RideOverview>> getRides(final long startDate);
     public abstract Future<DetailedRide> getRideDetails(long id);
+
+    /**
+     * Gets a list of all the user's gear. Output may either be null, a complete list, or a list containing IDs only.
+     * @param incompleteFlag output parameter. If true, flags the output as a list containing IDs only.
+     * @return
+     */
+    public abstract Future<ArrayList<Gear>> getGear(AtomicBoolean incompleteFlag);
 }

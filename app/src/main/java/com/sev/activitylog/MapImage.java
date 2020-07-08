@@ -9,9 +9,11 @@ import android.util.Log;
 
 import java.io.BufferedReader;
 import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.io.Serializable;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.ArrayList;
@@ -20,7 +22,32 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 import javax.net.ssl.HttpsURLConnection;
-abstract class Map{
+class SerializeableBitmap implements Serializable {
+    private transient Bitmap bitmap;
+    private byte[] serializedData;
+    public SerializeableBitmap(Bitmap source){
+        setBitmap(source);
+    }
+    public SerializeableBitmap(byte[] source){
+        serializedData = source;
+        getBitmap();
+    }
+    public void setBitmap(Bitmap bmp){
+        bitmap = bmp;
+        ByteArrayOutputStream stream = new ByteArrayOutputStream();
+        bitmap.compress(Bitmap.CompressFormat.PNG, 100, stream);
+        serializedData = stream.toByteArray();
+
+    }
+    public Bitmap getBitmap(){
+        if(bitmap == null && serializedData != null){
+            bitmap = BitmapFactory.decodeByteArray(serializedData, 0, serializedData.length);
+        }
+        return bitmap;
+    }
+
+}
+abstract class Map implements Serializable {
     protected MapBounds mapBounds;
     protected float aspectRatio;
     public abstract void draw(Canvas canvas, Rect destination, Paint paint);
@@ -47,23 +74,23 @@ abstract class Map{
     }
     public void setAspectRatio(float r) {aspectRatio = r;}
 }
-public class MapImage extends Map {
-    protected Bitmap img;
+public class MapImage extends Map implements Serializable {
+    protected SerializeableBitmap img;
     public void draw(Canvas canvas, Rect destination, Paint paint) {
         if(img != null) {
-            canvas.drawBitmap(img, new Rect(0, 0, img.getWidth(), img.getHeight()), destination, paint);
+            canvas.drawBitmap(img.getBitmap(), new Rect(0, 0, img.getBitmap().getWidth(), img.getBitmap().getHeight()), destination, paint);
         }
     }
     public void setMapBounds(MapBounds b){
         mapBounds = b;
     }
     public void setImg(Bitmap map){
-        img = map;
-        aspectRatio = (float)img.getWidth() / img.getHeight();
+        img = new SerializeableBitmap(map);
+        aspectRatio = (float)img.getBitmap().getWidth() / img.getBitmap().getHeight();
     }
 
 }
-class MapBounds{
+class MapBounds implements Serializable {
     public double left = 180, right = -180, top = -90, bottom = 90;
 }
 abstract class MapDecorator extends Map {

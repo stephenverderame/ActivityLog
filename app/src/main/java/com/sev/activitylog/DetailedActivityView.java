@@ -1,6 +1,7 @@
 package com.sev.activitylog;
 
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.appcompat.widget.Toolbar;
 
 import android.app.Application;
 import android.content.Context;
@@ -8,11 +9,15 @@ import android.content.Intent;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.KeyEvent;
+import android.view.LayoutInflater;
+import android.view.Menu;
+import android.view.MenuItem;
 import android.view.MotionEvent;
 import android.view.ScaleGestureDetector;
 import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
+import android.widget.LinearLayout;
 import android.widget.TextView;
 
 import java.io.BufferedReader;
@@ -23,10 +28,15 @@ import java.io.PrintStream;
 import java.io.PrintWriter;
 import java.text.SimpleDateFormat;
 import java.util.Timer;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 
 public class DetailedActivityView extends AppCompatActivity implements Observer {
 
-    private long ID;
+    private RideOverview rideBasics;
     private DetailedRide rideData;
     private OAuth auth;
     private AuthToken token;
@@ -47,30 +57,88 @@ public class DetailedActivityView extends AppCompatActivity implements Observer 
     private TouchState t;
     private String notesFilename;
     private boolean dirtyNotes;
+    private String activityNotes;
+    private LinearLayout masterContainer;
+    private View detailPage;
+    private Future<Pos[][]> heightMap;
+    private StorageModel model;
+    private boolean shouldSave;
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         t = new TouchState();
-        setContentView(R.layout.detail_view);
-        ID = getIntent().getLongExtra("activity_id", -1);
+        setContentView(R.layout.detail_master);
+        masterContainer = (LinearLayout)findViewById(R.id.detailMasterContainer);
+        detailPage = getLayoutInflater().inflate(R.layout.detail_view, null);
+        masterContainer.addView(detailPage);
+        rideBasics = (RideOverview)getIntent().getSerializableExtra("activity");
         token = getIntent().getParcelableExtra("auth_token");
-        if(token == null)
-            token = new AuthToken(getSharedPreferences("auth_token", MODE_PRIVATE));
-        auth = new OAuth(token);
-        auth.attach(this);
-        new Thread(auth).start();
         ((Button)findViewById(R.id.viewGLBtn)).setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-                gl = new GLView(DetailedActivityView.this);
-                gl.attach(DetailedActivityView.this);
-                setContentView(gl);
+                NavigationSingleton.getInstance().pushState(new NavigationCommand(DetailedActivityView.this, new Object[]{rideData}, new NavigationAction() { //pushes current state so we can go back in the gl view
+                    @Override
+                    public void navigate(AppCompatActivity fromActivity, AppCompatActivity destActivity, Object[] dstState) {
+                        if(fromActivity == destActivity){
+                            masterContainer.removeAllViews();
+                            masterContainer.addView(detailPage);
+                            DetailedActivityView.this.notify(new ObserverEventArgs(ObserverNotifications.RIDE_DETAILS_NOTIFY, rideData));
+                        }
+                    }
+                }));
+                masterContainer.removeAllViews();
+                masterContainer.addView(gl);
             }
         });
         dirtyNotes = false;
+        Toolbar actionBar = (Toolbar)findViewById(R.id.detailToolbar);
+        actionBar.inflateMenu(R.menu.top_detail_nav_menu);
+        setSupportActionBar(actionBar);
+        getSupportActionBar().setDisplayHomeAsUpEnabled(true);
+        getSupportActionBar().setHomeAsUpIndicator(R.drawable.back_arrow); //creates an action bar with a menu item on the left side
+        ((EditText)findViewById(R.id.rideNotes)).setOnEditorActionListener(new TextView.OnEditorActionListener() {
+            @Override
+            public boolean onEditorAction(TextView textView, int i, KeyEvent keyEvent) {
+                DetailedActivityView.this.dirtyNotes = true;
+                textView.setOnEditorActionListener(null); //detaches listener, we already know we have data to save
+                return true;
+            }
+        });
+        model = new StorageModel(this);
+        Future<DetailedRide> details = model.getRideDetails(rideBasics.getId());
+        try {
+            rideData = details.get();
+            Log.d("Detail", "Got details from storage!");
+        } catch (ExecutionException e) {
+            e.printStackTrace();
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+        if(rideData != null){ //if data is cached
+            Log.d("Detail", "Data exists!");
+            rideData.setOverview(rideBasics);
+            notify(new ObserverEventArgs(ObserverNotifications.RIDE_DETAILS_NOTIFY, rideData));
+            shouldSave = false;
+        }else { //if data is not cached
+            if(token == null)
+                token = new AuthToken(getSharedPreferences("auth_token", MODE_PRIVATE));
+            Log.d("Detail", "Doing authentication!");
+            auth = new OAuth(token);
+            auth.attach(this);
+            new Thread(auth).start();
+            shouldSave = true;
+        }
+        gl = new GLView(DetailedActivityView.this);
+        gl.attach(DetailedActivityView.this);
 
     }
-
+    @Override
+    public void onBackPressed(){
+        if(NavigationSingleton.getInstance().empty())
+            moveTaskToBack(true);
+        else
+            NavigationSingleton.getInstance().goBack(this);
+    }
     @Override
     public void notify(ObserverEventArgs e) {
         switch(e.getEventType()){
@@ -78,7 +146,7 @@ public class DetailedActivityView extends AppCompatActivity implements Observer 
             {
                 StravaModel model = new StravaModel(auth);
                 model.attach(this);
-                model.getRideDetails(ID);
+                model.getRideDetails(rideBasics.getId());
                 break;
             }
             case RIDE_DETAILS_NOTIFY:
@@ -87,30 +155,27 @@ public class DetailedActivityView extends AppCompatActivity implements Observer 
                 rideData = (DetailedRide)e.getEventArgs()[0];
                 if(rideData != null) {
                     Log.d("Detail View", "Setting view!");
-                    view.setTitle(rideData.getOverview().getName());
-                    view.setSubtitle(new SimpleDateFormat("MMM dd yyyy hh:mm a").format(rideData.getOverview().getDate()));
+                    view.setTitle(rideBasics.getName());
+                    view.setSubtitle(new SimpleDateFormat("MMM dd yyyy hh:mm a").format(rideBasics.getDate()));
                     view.setInfoGrid(10, 3);
-                    view.setInfo("Distance", String.format("%.2f miles", rideData.getOverview().getDistance() * 0.000621371), 0, 0);
-                    view.setInfo("Moving Time", TimeSpan.fromSeconds((long) rideData.getOverview().getMovingTime()), 0, 1);
-                    view.setInfo("Elevation", String.format("%.2f ft", rideData.getOverview().getClimbed() * 3.28084), 0, 2);
+                    view.setInfo("Distance", String.format("%.2f miles", rideBasics.getDistance() * RideOverview.METERS_MILES_CONVERSION), 0, 0);
+                    view.setInfo("Moving Time", TimeSpan.fromSeconds((long) rideBasics.getMovingTime()), 0, 1);
+                    view.setInfo("Elevation", String.format("%.2f ft", rideBasics.getClimbed() * RideOverview.METERS_FEET_CONVERSION), 0, 2);
                     view.setInfo("Gear", rideData.getGearName(), 1, 0);
-                    view.setInfo("Average Speed", String.format("%.1f mph", rideData.getOverview().getAverageSpeed() * 0.000621371 / 3600.0), 1, 1);
-                    view.setInfo("Average Power", String.format("%.2f W", rideData.getOverview().getPower()), 1, 2);
-                    view.setInfo("Total Time", TimeSpan.fromSeconds((long) rideData.getOverview().getTotalTime()), 2, 0);
-                    view.setInfo("Activity", rideData.getOverview().getActivityType(), 2, 1);
+                    view.setInfo("Average Speed", String.format("%.1f mph", rideBasics.getAverageSpeed() * RideOverview.METERS_MILES_CONVERSION / 3600.0), 1, 1);
+                    view.setInfo("Average Power", String.format("%.2f W", rideBasics.getPower()), 1, 2);
+                    view.setInfo("Total Time", TimeSpan.fromSeconds((long) rideBasics.getTotalTime()), 2, 0);
+                    view.setInfo("Activity", rideBasics.getActivityType(), 2, 1);
                     view.setFont(new ActivityViewFontBuilder().labelSize(16).infoSize(12).build());
                     view.invalidate();
-                    RoadMapFactory rmap = new RoadMapFactory();
-                    rmap.attach(this);
-                    rmap.makeAsync(rmap.boundsFromRoute(rideData.getRoute()));
-                    notesFilename = (rideData.getOverview().getDate().getTime() / 1000) + "_notes.txt";
-                    ((EditText)findViewById(R.id.rideNotes)).setOnEditorActionListener(new TextView.OnEditorActionListener() {
-                        @Override
-                        public boolean onEditorAction(TextView textView, int i, KeyEvent keyEvent) {
-                            DetailedActivityView.this.dirtyNotes = true;
-                            return true;
-                        }
-                    });
+                    if(rideData.getImg() != null)
+                        notify(new ObserverEventArgs(ObserverNotifications.MAP_LOAD_NOTIFY, rideData.getImg()));
+                    else {
+                        RoadMapFactory rmap = new RoadMapFactory();
+                        rmap.attach(this);
+                        rmap.makeAsync(rmap.boundsFromRoute(rideData.getRoute()));
+                    }
+                    notesFilename = (rideBasics.getDate().getTime() / 1000) + "_notes.txt";
                     openNotes(notesFilename);
                 }
                 break;
@@ -128,6 +193,19 @@ public class DetailedActivityView extends AppCompatActivity implements Observer 
                 this.route = route;
                 view.setMap(route, 3, 0, 7, 3);
                 view.invalidate();
+                rideData.setImg(img);
+                if(rideData.getHeightMap() == null) {
+                    heightMap = Pos.getHeightMap(120, 120, new Pos(route.mapBounds.top, route.mapBounds.left), new Pos(route.mapBounds.bottom, route.mapBounds.right));
+                    shouldSave = true;
+                }
+                else {
+                    heightMap = Executors.newSingleThreadExecutor().submit(new Callable<Pos[][]>() {
+                        @Override
+                        public Pos[][] call() throws Exception {
+                            return rideData.getHeightMap();
+                        }
+                    });
+                }
                 break;
             }
             case OPENGL_INIT_NOTIFY:
@@ -136,7 +214,7 @@ public class DetailedActivityView extends AppCompatActivity implements Observer 
                 scene = new GLSceneComposite();
                 scene.addObject(new Skybox(new int[] {R.drawable.bluecloud_rt, R.drawable.bluecloud_lf, R.drawable.bluecloud_up, R.drawable.bluecloud_dn, R.drawable.bluecloud_ft,
                         R.drawable.bluecloud_bk}, getResources(), getResources().getInteger(R.integer.sky_shader_id)), false); //https://opengameart.org/content/cloudy-skyboxes));
-                terrain = new Terrain(route, Pos.getHeightMap(120, 120, new Pos(route.mapBounds.top, route.mapBounds.left), new Pos(route.mapBounds.bottom, route.mapBounds.right)));
+                terrain = new Terrain(route, heightMap);
                 terrain.scale(100f, 100f, 100f);
                 terrain.translate(0, 0, 0);
                 scene.addObject(terrain, false);
@@ -150,26 +228,28 @@ public class DetailedActivityView extends AppCompatActivity implements Observer 
                 gl.addRendererPass(shadow);
                 gl.setRendererScene(scene);
                 gl.setRendererView(camera);
-                gl.requestRender();
+ //               gl.requestRender();
 //                gl.setDrawLogic(this);
                 break;
             }
             case TOUCH_NOTIFY:
-                onTouch((MotionEvent)e.getEventArgs()[0]);
+                onGLTouch((MotionEvent)e.getEventArgs()[0]);
                 break;
         }
     }
     private void openNotes(String filename) {
-        StringBuilder notes = new StringBuilder();
-        try(BufferedReader reader = new BufferedReader(new InputStreamReader(openFileInput(filename)))){
-            String line;
-            while((line = reader.readLine()) != null)
-                notes.append(line).append('\n');
-            ((EditText)findViewById(R.id.rideNotes)).getText().append(notes.toString());
-        } catch (FileNotFoundException e) {
-            e.printStackTrace();
-        } catch (IOException e) {
-            e.printStackTrace();
+        if(activityNotes == null) {
+            StringBuilder notes = new StringBuilder();
+            try (BufferedReader reader = new BufferedReader(new InputStreamReader(openFileInput(filename)))) {
+                String line;
+                while ((line = reader.readLine()) != null)
+                    notes.append(line).append('\n');
+                ((EditText) findViewById(R.id.rideNotes)).getText().append(notes.toString());
+                activityNotes = notes.toString();
+            } catch (FileNotFoundException e) {
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
         }
     }
     private void saveNotes(){
@@ -184,12 +264,31 @@ public class DetailedActivityView extends AppCompatActivity implements Observer 
     }
 
     @Override
-    protected void onDestroy() {
+    protected void onStop(){
         if(dirtyNotes) saveNotes();
-        super.onDestroy();
+        gl.destructor();
+        if(heightMap.isDone()) {
+            try {
+                rideData.setHeightMap(heightMap.get());
+            } catch (ExecutionException e) {
+                e.printStackTrace();
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+        }
+        if(shouldSave) model.saveDetailedRide(rideData);
+        super.onStop();
     }
 
-    private void onTouch(MotionEvent e){
+    @Override
+    public boolean onOptionsItemSelected(MenuItem item){
+        if(item.getItemId() == android.R.id.home){
+            NavigationSingleton.getInstance().goBack(this);
+            return true;
+        }
+        return super.onOptionsItemSelected(item);
+    }
+    private void onGLTouch(MotionEvent e){
         switch(e.getActionMasked()){
             case MotionEvent.ACTION_MOVE:
             {
@@ -255,6 +354,6 @@ public class DetailedActivityView extends AppCompatActivity implements Observer 
             default:
                 return;
         }
-        gl.requestRender();
+//        gl.requestRender();
     }
 }
