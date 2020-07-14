@@ -1,0 +1,79 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout
+    xmlns:android="http://schemas.android.com/apk/res/android" android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@drawable/round_rect_shadow"
+    android:layout_margin="10dp">
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:layout_margin="10dp">
+        <GridLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:columnCount="2"
+            android:rowCount="10"
+            android:useDefaultMargins="true">
+            <TextView android:layout_row="0" android:layout_column="0" android:layout_columnWeight="1" android:id="@+id/stats_distance" android:text="Distance:" android:layout_width="0dp" android:layout_gravity="fill_horizontal"/>
+            <TextView android:layout_row="0" android:layout_column="1" android:layout_columnWeight="1" android:id="@+id/stats_mtime" android:text="Moving Time:" android:layout_width="0dp" android:layout_gravity="fill_horizontal"/>
+            <TextView android:layout_row="1" android:layout_column="0" android:layout_columnWeight="1" android:id="@+id/stats_ttime" android:text="Total Time:" android:layout_width="0dp" android:layout_gravity="fill_horizontal"/>
+            <TextView android:layout_row="1" android:layout_column="1" android:layout_columnWeight="1" android:id="@+id/stats_elevation" android:text="Elevation:" android:layout_width="0dp" android:layout_gravity="fill_horizontal"/>
+            <TextView android:layout_row="2" android:layout_column="0" android:layout_columnWeight="1" android:id="@+id/stats_calories" android:text="Calories:" android:layout_width="0dp" android:layout_gravity="fill_horizontal"/>
+            <TextView android:layout_row="2" android:layout_column="1" android:layout_columnWeight="1" android:id="@+id/stats_activities" android:text="Activities:" android:layout_width="0dp" android:layout_gravity="fill_horizontal"/>
+            <TextView android:layout_row="3" android:layout_column="0" android:layout_columnWeight="1" android:id="@+id/stats_power" android:text="Avg Power:" android:layout_marginTop="40dp" android:layout_width="0dp" android:layout_gravity="fill_horizontal"/>
+            <TextView android:layout_row="3" android:layout_column="1" android:layout_columnWeight="1" android:id="@+id/stats_speed" android:text="Avg Speed:" android:layout_marginTop="40dp" android:layout_width="0dp" android:layout_gravity="fill_horizontal"/>
+            <TextView android:layout_row="4" android:layout_column="0" android:layout_columnWeight="1" android:id="@+id/stats_avg_distance" android:text="Avg Distance:" android:layout_width="0dp" android:layout_gravity="fill_horizontal"/>
+            <TextView android:layout_row="4" android:layout_column="1" android:layout_columnWeight="1" android:id="@+id/stats_avg_time" android:text="Avg Time:" android:layout_width="0dp" android:layout_gravity="fill_horizontal"/>
+            <TextView android:layout_row="5" android:layout_column="0" android:layout_columnWeight="1" android:id="@+id/stats_week_activities" android:text="Weekly Activities:" android:layout_width="0dp" android:layout_gravity="fill_horizontal"/>
+        </GridLayout>
+        <TextView android:text="More Stats For Nerds" android:layout_height="wrap_content" android:layout_width="match_parent" android:textAlignment="center"
+            android:layout_marginTop="50dp" android:textSize="30dp"/>
+        <HorizontalScrollView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content">
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal">
+            <Spinner
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:entries="@array/function"
+                android:id="@+id/function_spinner" />
+            <Spinner
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:entries="@array/stat"
+                android:id="@+id/stat_spinner"/>
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="during interval"/>
+            <EditText
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:inputType="number"
+                android:hint="Num Intervals"
+                android:id="@+id/interval_number"/>
+            <Spinner
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:entries="@array/interval"
+                android:id="@+id/interval_spinner"/>
+        </LinearLayout>
+        </HorizontalScrollView>
+        <Button
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Calculate"
+            android:layout_gravity="center"
+            android:id="@+id/custom_btn"/>
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:id="@+id/custom_result"
+            android:textAlignment="center"/>
+    </LinearLayout>
+
+</FrameLayout>

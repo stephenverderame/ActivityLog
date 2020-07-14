@@ -131,7 +131,7 @@ public class ActivityView extends View implements Subject {
         if(info != null) {
             for (int r = 0; r < info.length; ++r) {
                 for (int c = 0; c < info[r].length; ++c) {
-                    if(info[r][c] != null) {
+                    if(info[r][c] != null && info[r][c].getValue() != null) {
                         textPaint.setTextSize(fnt.labelSize * dp2pxFactor);
                         textPaint.setColor(Color.BLACK);
  /*                       if (textPaint.measureText(info[r][c].getKey()) > gridX) {

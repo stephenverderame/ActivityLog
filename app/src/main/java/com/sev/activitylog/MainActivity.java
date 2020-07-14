@@ -3,6 +3,7 @@ package com.sev.activitylog;
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.Toolbar;
+import androidx.fragment.app.FragmentTransaction;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
@@ -13,6 +14,7 @@ import android.os.Looper;
 import android.os.Parcelable;
 import android.util.Log;
 import android.view.MenuItem;
+import android.view.SurfaceControl;
 import android.widget.LinearLayout;
 import android.widget.Toast;
 
@@ -21,15 +23,8 @@ import com.google.android.material.bottomnavigation.BottomNavigationView;
 import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
-import java.util.Queue;
-import java.util.concurrent.ArrayBlockingQueue;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.locks.Condition;
-import java.util.concurrent.locks.ReentrantLock;
 
 class RemoteQuery {
     public static final int RIDE_QUERY = 1, GEAR_QUERY = 2;
@@ -41,25 +36,26 @@ class RemoteQuery {
     long syncTime;
 }
 public class MainActivity extends AppCompatActivity implements Observer, NavigationAction, onSearchListener {
+    private static final int MULTI_PAGE = 3, STATS_PAGE = 2, WEEK_PAGE = 1, RECENT_PAGE = 0;
+    private int lastPage = RECENT_PAGE;
 
     private List<RideOverview> rideList;
     private StorageModel storage;
     private StravaModel remoteModel;
     long lastSync = 0;
     private OAuth auth;
-    private RecyclerView recyclerView;
-    private RecentActivityAdapter recentActivityViewAdapter; //adapter for per activity view
-    private WeekViewAdapter recyclerWeekAdapter; //adapter for per week view
 
-    private boolean dataDirty = false, gearDirty = false;
+    private boolean dataDirty = false;
     private boolean finishedLoading = false;
 
-    private NavigationCommand[] menuNav;
 
     private Future<ArrayList<Gear>> gearList;
     private AtomicBoolean isGearListIncomplete;
 
     private LinkedList<RemoteQuery> queryQ;
+    private SearchFilters activeFilters;
+
+    private DataFragment[] fragments;
 
 
     @Override
@@ -70,10 +66,6 @@ public class MainActivity extends AppCompatActivity implements Observer, Navigat
         remoteModel = new StravaModel(auth);
         remoteModel.attach(this);
         queryQ = new LinkedList<>();
-        menuNav = new NavigationCommand[2];
-        for(int i = 0; i < menuNav.length; ++i)
-            menuNav[i] = new NavigationCommand(this, this);
-        boolean needToLoad = true;
         rideList = (List<RideOverview>)getIntent().getSerializableExtra("ride_list");
         setContentView(R.layout.activity_main);
         storage = new StorageModel(this);
@@ -82,45 +74,74 @@ public class MainActivity extends AppCompatActivity implements Observer, Navigat
         if(rideList == null){
             rideList = new LinkedList<>();
             storage.getRides(0);
+//            notify(new ObserverEventArgs(ObserverNotifications.RIDES_LOAD_NOTIFY, null, null));
         }
         else{
             LinearLayout layout = (LinearLayout) findViewById(R.id.container);
             layout.removeView(findViewById(R.id.loadingBar));
             layout.removeView(findViewById(R.id.loadingText));
+            gearList = storage.getGear(isGearListIncomplete);
+            finishedLoading = true;
         }
- //       notify(new ObserverEventArgs(ObserverNotifications.RIDES_LOAD_NOTIFY, null, null)); //DEBUGGING - to force update from strava
-        recyclerView = (RecyclerView)findViewById(R.id.recycle);
-        recyclerView.setLayoutManager(new LinearLayoutManager(this));
-        recentActivityViewAdapter = new RecentActivityAdapter(rideList);
-        recentActivityViewAdapter.attach(this);
-        recyclerView.setAdapter(recentActivityViewAdapter);
-        recyclerWeekAdapter = new WeekViewAdapter(rideList);
-        recyclerWeekAdapter.attach(this);
-        menuNav[0].setDestState(new Object[] {recentActivityViewAdapter, getIntent().getParcelableExtra("recent_state")});
-        menuNav[1].setDestState(new Object[] {recyclerWeekAdapter, getIntent().getParcelableExtra("week_state")});
-        menuNav[0].goTo(this);
+        fragments = new DataFragment[4];
+        fragments[RECENT_PAGE] = new RecentFragment(rideList, this);
+        fragments[WEEK_PAGE] = new WeekFragment(rideList, this);
+        fragments[STATS_PAGE] = new StatsFragment(rideList);
+        fragments[MULTI_PAGE] = new RecentFragment(null, this);
 
+        Parcelable recent;
+        if((recent = getIntent().getParcelableExtra("recent_state")) != null){
+            fragments[RECENT_PAGE].loadStateFromParcel(recent);
+            fragments[WEEK_PAGE].loadStateFromParcel(getIntent().getParcelableExtra("week_state"));
+            fragments[STATS_PAGE].loadStateFromParcel(getIntent().getParcelableExtra("stat_state"));
+            fragments[MULTI_PAGE].loadStateFromParcel(getIntent().getParcelableExtra("multi_state"));
+            lastPage = getIntent().getIntExtra("last_page", RECENT_PAGE);
+            finishedLoading = true;
+        }
+
+        FragmentTransaction transaction = getSupportFragmentManager().beginTransaction();
+        transaction.replace(R.id.main_fragment_container, fragments[lastPage]);
+        transaction.commit();
         BottomNavigationView nav = (BottomNavigationView)findViewById(R.id.navBar);
+        nav.setSelectedItemId(menuIdFromPageId(lastPage));
         nav.setOnNavigationItemSelectedListener(new BottomNavigationView.OnNavigationItemSelectedListener() {
 
             @Override
             public boolean onNavigationItemSelected(@NonNull MenuItem menuItem) {
+                ((DataFragment)getSupportFragmentManager().findFragmentById(R.id.main_fragment_container)).cacheState();
                 switch(menuItem.getItemId()) {
                     case R.id.recentMenuItem:
-                        menuNav[1].setDestState(getPartialMemento());
-                        menuNav[0].goTo(MainActivity.this);
+                    {
+                        FragmentTransaction transaction = getSupportFragmentManager().beginTransaction();
+                        transaction.replace(R.id.main_fragment_container, fragments[RECENT_PAGE]);
+                        transaction.commit();
+                        lastPage = RECENT_PAGE;
                         break;
+                    }
                     case R.id.weekMenuItem:
                         if(finishedLoading) {
-                            menuNav[0].setDestState(getPartialMemento());
-                            menuNav[1].goTo(MainActivity.this);
+                            FragmentTransaction trans = getSupportFragmentManager().beginTransaction();
+                            trans.replace(R.id.main_fragment_container, fragments[WEEK_PAGE]);
+                            trans.commit();
+                            lastPage = WEEK_PAGE;
                         }
-                        else
+                        else {
                             Toast.makeText(getApplicationContext(), "Please wait until data has finished loading", Toast.LENGTH_LONG);
+                            return false;
+                        }
                         break;
+                    case R.id.statMenuItem:
+                    {
+                        FragmentTransaction trans = getSupportFragmentManager().beginTransaction();
+                        trans.replace(R.id.main_fragment_container, fragments[STATS_PAGE]);
+                        trans.commit();
+                        lastPage = STATS_PAGE;
+                        break;
+                    }
                     default:
                         return false;
                 }
+                ((FilterFragment)getSupportFragmentManager().findFragmentById(R.id.filterView)).clear();
                 return true;
             }
         });
@@ -136,8 +157,8 @@ public class MainActivity extends AppCompatActivity implements Observer, Navigat
                 return false;
             }
         });
-        ((FilterView)findViewById(R.id.filterView)).setOnSearchListener(this);
-        ((FilterView)findViewById(R.id.filterView)).setGearList(gearList);
+        ((FilterFragment)getSupportFragmentManager().findFragmentById(R.id.filterView)).setOnSearchListener(this);
+        ((FilterFragment)getSupportFragmentManager().findFragmentById(R.id.filterView)).setGearList(gearList);
     }
 
     @Override
@@ -157,7 +178,8 @@ public class MainActivity extends AppCompatActivity implements Observer, Navigat
                     dataDirty = true;
                     loadFromRemote(RemoteQuery.RIDE_QUERY, lastSync);
                 }else {
-                    recyclerWeekAdapter.init();
+                    for(int i = 0; i < fragments.length; ++i)
+                        fragments[i].notifyDataFinish();
                     finishedLoading = true;
                     try {
                         gearList = storage.getGear(isGearListIncomplete);
@@ -167,6 +189,7 @@ public class MainActivity extends AppCompatActivity implements Observer, Navigat
                             loadFromRemote(RemoteQuery.GEAR_QUERY, 0);
                         }else{
                             Log.d("Main", "Gear is fine");
+                            ((FilterFragment)getSupportFragmentManager().findFragmentById(R.id.filterView)).setGearList(gearList);
                         }
                     } catch (Exception ex) {ex.printStackTrace();}
                 }
@@ -187,12 +210,11 @@ public class MainActivity extends AppCompatActivity implements Observer, Navigat
                     boolean insert = (boolean)e.getEventArgs()[1];
                     if(insert) {
                         rideList.addAll(0, newRides);
-                        recentActivityViewAdapter.notifyItemRangeInserted(0, newRides.size());
-                        recyclerView.scrollToPosition(0);
+                        ((DataFragment)getSupportFragmentManager().findFragmentById(R.id.main_fragment_container)).notifyDataInsertion(0, newRides.size());
                     }
                     else{
                         rideList.addAll(newRides);
-                        recentActivityViewAdapter.notifyItemRangeChanged(rideList.size() - newRides.size(), newRides.size());
+                        ((DataFragment)getSupportFragmentManager().findFragmentById(R.id.main_fragment_container)).notifyDataInsertion(rideList.size() - newRides.size(), newRides.size());
                     }
                 }
                 break;
@@ -201,7 +223,8 @@ public class MainActivity extends AppCompatActivity implements Observer, Navigat
             {
                 LinkedList<RideOverview> list = new LinkedList<>();
                 list.addAll(rideList);
-                NavigationSingleton.getInstance().pushState(new NavigationCommand(this, new Object[]{list, menuNav[0].getState()[1], menuNav[1].getState()[1]}, this));
+                NavigationSingleton.getInstance().pushState(new NavigationCommand(this, new Object[]{list, fragments[RECENT_PAGE].getState(), fragments[WEEK_PAGE].getState(),
+                        fragments[STATS_PAGE].getState(), fragments[MULTI_PAGE].getState(), lastPage}, this));
                 Intent detailedIntent = new Intent(this, DetailedActivityView.class);
                 detailedIntent.putExtra("activity", (RideOverview)e.getEventArgs()[0]);
                 if(auth != null)
@@ -212,84 +235,61 @@ public class MainActivity extends AppCompatActivity implements Observer, Navigat
             case ACTIVITY_SELECT_MULTIPLE_NOTIFY:
             {
                 //in week view, if multiple activities were recorded in the same day, they appear as one day in the week. If clicked it will open a new list with each ride
-                LinkedList<RideOverview> multiRides = (LinkedList<RideOverview>)e.getEventArgs()[0];
-                RecentActivityAdapter adapter = new RecentActivityAdapter(multiRides);
-                adapter.attach(this);
-                recyclerView.setAdapter(adapter);
+                fragments[MULTI_PAGE].setData((LinkedList<RideOverview>)e.getEventArgs()[0]);
+                FragmentTransaction ft = getSupportFragmentManager().beginTransaction();
+                ft.replace(R.id.main_fragment_container, fragments[MULTI_PAGE]);
+                ft.commit();
+                lastPage = MULTI_PAGE;
                 break;
             }
         }
     }
 
     @Override
-    public void navigate(AppCompatActivity fromActivity, AppCompatActivity destActivity, Object[] dstState) {
+    public void navigate(AppCompatActivity fromActivity, AppCompatActivity destActivity, Object[] dstState, Object... args) {
         if(destActivity == fromActivity){ //if navigating from this activity to another state in this activity
-            RecyclerView.Adapter<RecyclerView.ViewHolder> adapter = (RecyclerView.Adapter<RecyclerView.ViewHolder>)dstState[0];
+/*            RecyclerView.Adapter<RecyclerView.ViewHolder> adapter = (RecyclerView.Adapter<RecyclerView.ViewHolder>)dstState[0];
             Parcelable adapterState = (Parcelable)dstState[1];
             recyclerView.setAdapter(adapter);
-            if(adapterState != null) recyclerView.getLayoutManager().onRestoreInstanceState(adapterState);
+            if(adapterState != null) recyclerView.getLayoutManager().onRestoreInstanceState(adapterState);*/
 
         }else{
             Intent mainIntent = new Intent(fromActivity, destActivity.getClass());
-            mainIntent.putExtra("ride_list", (LinkedList<RideOverview>)dstState[0]);
+            LinkedList<RideOverview> rideList = new LinkedList<>(); rideList.addAll(this.rideList);//(LinkedList<RideOverview>)dstState[0];
+            if(args.length >= 1){
+                RideOverview editedRide = (RideOverview)args[0];
+                int i = RideOverview.indexOfExact(rideList, editedRide.getDate());
+                if(i != -1) rideList.set(i, editedRide);
+            }
+            mainIntent.putExtra("ride_list", rideList);
             mainIntent.putExtra("recent_state", (Parcelable)dstState[1]);
             mainIntent.putExtra("week_state", (Parcelable)dstState[2]);
+            mainIntent.putExtra("stat_state", (Parcelable)dstState[3]);
+            mainIntent.putExtra("multi_state", (Parcelable)dstState[4]);
+            mainIntent.putExtra("last_page", (Integer)dstState[5]);
             startActivity(mainIntent);
         }
-    }
-    private Object[] getPartialMemento(){
-        return new Object[] {recyclerView.getAdapter(), recyclerView.getLayoutManager().onSaveInstanceState()};
     }
 
     @Override
     public void search(SearchFilters filter) {
-        LinkedList<RideOverview> rides = new LinkedList<>();
-        for(RideOverview r : rideList) {
-            if (r.doesApply(filter)) rides.add(r);
-        }
-        recyclerView.setAdapter(new RecentActivityAdapter(rides));
-    }
-    @Override
-    public void onStop(){
-        if(gearDirty) {
-            try {
-                storage.saveGearList(gearList.get(3, TimeUnit.SECONDS));
-            } catch (ExecutionException e) {
-                e.printStackTrace();
-            } catch (InterruptedException e) {
-                e.printStackTrace();
-            } catch (TimeoutException e) {
-                e.printStackTrace();
-            }
-        }
-        super.onStop();
+        DataFragment activeFrag =  (DataFragment)getSupportFragmentManager().findFragmentById(R.id.main_fragment_container);
+        activeFrag.filter(filter);
+        FragmentTransaction transaction = getSupportFragmentManager().beginTransaction();
+        transaction.detach(activeFrag).attach(activeFrag);
+       transaction.commit();
     }
     private void loadFromRemote(int dataType, long lastSyncTime){
         Log.d("Remote", "Loading " + dataType);
         synchronized (queryQ) {
             queryQ.push(new RemoteQuery(dataType, lastSyncTime));
-            Log.d("Remot", "Pushing request");
+            Log.d("Remote", "Pushing request");
         }
         if(!(auth.isAuthComplete() || auth.isAuthenticating())) {
             Thread producer = new Thread(auth);
             producer.start();
-        }else if(auth.isAuthenticating()){
-            Thread consumer = new Thread(new Runnable() {
-                @Override
-                public void run() {
-                    do{
-                        try {
-                            Thread.sleep(500);
-                        } catch (InterruptedException e) {
-                            e.printStackTrace();
-                        }
-                    } while(auth.isAuthenticating());
-                    continueFromRemote();
-                }
-            });
-            consumer.start();
         }
-        else{
+        else if (!auth.isAuthenticating()){
             continueFromRemote();
         }
     }
@@ -310,11 +310,21 @@ public class MainActivity extends AppCompatActivity implements Observer, Navigat
                     }
                     gearList = remoteModel.getGear(isGearListIncomplete);
                     new Handler(Looper.getMainLooper()).post(() -> {
-                        ((FilterView) findViewById(R.id.filterView)).setGearList(gearList);
+                        ((FilterFragment)getSupportFragmentManager().findFragmentById(R.id.filterView)).setGearList(gearList);
                     });
                 }
                 queryQ.pop();
             }
+        }
+    }
+    private int menuIdFromPageId(int pageId){
+        switch(pageId){
+            case WEEK_PAGE:
+                return R.id.weekMenuItem;
+            case STATS_PAGE:
+                return R.id.statMenuItem;
+            default:
+                return R.id.recentMenuItem;
         }
     }
 }

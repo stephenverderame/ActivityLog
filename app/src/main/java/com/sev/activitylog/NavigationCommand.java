@@ -36,11 +36,22 @@ public class NavigationCommand {
     public void goTo(AppCompatActivity currentActivity){
         action.navigate(currentActivity, destActivity, destState);
     }
+    public void goTo(AppCompatActivity currentActivity, Object... args){
+        action.navigate(currentActivity, destActivity, destState, args);
+    }
     public Object[] getState() {return destState;}
 
 }
+
 interface NavigationAction {
-    public void navigate(AppCompatActivity fromActivity, AppCompatActivity destActivity, Object[] dstState);
+    /**
+     * Implementation of code to execute when the command is popped off the stack
+     * @param fromActivity activity navigating from
+     * @param destActivity activity navigating to - the activity that pushed the command onto the stack
+     * @param dstState state of the activity when the command was pushed onto the stack
+     * @param args optional paramters returned to the activity that pushed the command onto the stack
+     */
+    public void navigate(AppCompatActivity fromActivity, AppCompatActivity destActivity, Object[] dstState, Object... args);
 }
 class NavigationSingleton {
     private static NavigationSingleton instance;
@@ -53,6 +64,11 @@ class NavigationSingleton {
         navStack = new Stack<>();
     };
     private Stack<NavigationCommand> navStack;
+
+    /**
+     * Saves the navigation command on the stack
+     * @param goToHere navigation command encapsulating relevant code and copied state variables to return the activity to its current position
+     */
     public void pushState(NavigationCommand goToHere){
         navStack.push(goToHere);
     }
@@ -61,6 +77,13 @@ class NavigationSingleton {
             NavigationCommand last = navStack.peek();
             navStack.pop();
             last.goTo(currentActivity);
+        }
+    }
+    public void goBack(AppCompatActivity currentActivity, Object... args){
+        if(!navStack.empty()) {
+            NavigationCommand last = navStack.peek();
+            navStack.pop();
+            last.goTo(currentActivity, args);
         }
     }
     public boolean empty() {return navStack.empty();}

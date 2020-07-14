@@ -41,7 +41,7 @@
         <item>StandUpPaddling</item>
         <item>Surfing</item>
         <item>Swim</item>
-        <item>>Velomobile</item>
+        <item>Velomobile</item>
         <item>VirtualRide</item>
         <item>VirtualRun</item>
         <item>Walk</item>
@@ -50,5 +50,32 @@
         <item>Windsurf</item>
         <item>Workout</item>
         <item>Yoga</item>
+    </string-array>
+    <string-array name="function">
+        <item>Maximum</item>
+        <item>Mean</item>
+        <item>Median</item>
+        <item>Minimum</item>
+        <item>Mode</item>
+        <item>Summation</item>
+    </string-array>
+    <string-array name="stat">
+        <item>Average Speed</item>
+        <item>Activities</item>
+        <item>Activity Type</item>
+        <item>Calories</item>
+        <item>Distance</item>
+        <item>Elevation</item>
+        <item>Max Speed</item>
+        <item>Moving Time</item>
+        <item>Power</item>
+        <item>Total Time</item>
+    </string-array>
+    <string-array name="interval">
+        <item>Activity</item>
+        <item>Day</item>
+        <item>Week</item>
+        <item>Month</item>
+        <item>Year</item>
     </string-array>
 </resources>

@@ -28,6 +28,7 @@ public abstract class GLObject implements Destructor {
     protected int shaderID;
     protected boolean isModelDirty;
     public abstract void draw(GLRendererShaderManager shader);
+    //Function to draw geometry only. Used for other passes to avoid the object messing with shaders
     public abstract void drawGeometry(GLRendererShaderManager shader);
     public GLObject(){
         Matrix.setIdentityM(model, 0);
@@ -487,6 +488,7 @@ class Terrain extends GLObject {
         GLES30.glDeleteBuffers(1, debugVbo, 0);
     }
 }
+//Composite objects for GLObject
 class GLSceneComposite extends GLObject {
 
     private int handles;
@@ -561,6 +563,12 @@ class GLSceneComposite extends GLObject {
             sceneObjects.remove(index);
         }
     }
+
+    /**
+     * Returns the actual index of the date referenced by the handle. Handles are in order but there may be gaps if remove() is called
+     * @param handle
+     * @return
+     */
     private int getIndex(int handle){
         int guess;
         int start = 0, end = sceneObjects.size() - 1;

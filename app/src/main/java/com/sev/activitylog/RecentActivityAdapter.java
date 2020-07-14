@@ -1,5 +1,11 @@
 package com.sev.activitylog;
 
+import android.content.Context;
+import android.content.res.ColorStateList;
+import android.graphics.BlendMode;
+import android.graphics.Color;
+import android.graphics.PorterDuff;
+import android.os.Build;
 import android.util.Log;
 import android.view.Gravity;
 import android.view.LayoutInflater;
@@ -11,8 +17,13 @@ import android.widget.TextView;
 
 import androidx.annotation.NonNull;
 import androidx.cardview.widget.CardView;
+import androidx.core.graphics.drawable.DrawableCompat;
+import androidx.core.view.ViewCompat;
 import androidx.recyclerview.widget.RecyclerView;
 
+import java.io.FileNotFoundException;
+import java.io.IOException;
+import java.io.ObjectInputStream;
 import java.text.SimpleDateFormat;
 import java.time.DayOfWeek;
 import java.util.ArrayList;
@@ -22,12 +33,19 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
+import static android.view.View.GONE;
+
 public class RecentActivityAdapter extends RecyclerView.Adapter<RecentActivityAdapter.CardListViewHolder> implements Subject {
     private List<RideOverview> data;
     private LinkedList<Observer> observers;
     public RecentActivityAdapter(List<RideOverview> data){
         this.data = data;
         observers = new LinkedList<>();
+    }
+    public RecentActivityAdapter(List<RideOverview> data, Observer... observers){
+        this(data);
+        for(Observer o : observers)
+            this.observers.add(o);
     }
     @NonNull
     @Override
@@ -85,46 +103,76 @@ public class RecentActivityAdapter extends RecyclerView.Adapter<RecentActivityAd
 
 }
 class WeekViewAdapter extends RecyclerView.Adapter<WeekViewAdapter.WeekViewHolder> implements Subject {
-    private ArrayList<BasicRideData> list;
+    private ArrayList<RideOverview> weekOverview;
+    private ArrayList<int[]> weekIndexes;
     private long totalDays;
     private int numWeeks;
     private int latestDayOfWeek, firstDayOfWeek;
     private List<RideOverview> rides;
     private LinkedList<Observer> observers;
     private boolean inited;
-    public WeekViewAdapter(List<RideOverview> rides){
-        list = new ArrayList<BasicRideData>();
+    private SearchFilters filter;
+    private Context ctx;
+    public WeekViewAdapter(List<RideOverview> rides, Context ctx){
+        weekOverview = new ArrayList<>();
+        weekIndexes = new ArrayList<>();
         observers = new LinkedList<>();
         this.rides = rides;
         inited = false;
+        this.ctx = ctx;
+    }
+    public WeekViewAdapter(List<RideOverview> rides, SearchFilters filter, Context ctx){
+        this(rides, ctx);
+        this.filter = filter;
+    }
+    public WeekViewAdapter(List<RideOverview> rides, SearchFilters filter, Context ctx, Observer... observers){
+        this(rides, filter, ctx);
+        for(Observer o : observers)
+            this.observers.add(o);
+        init();
     }
 
     /**
      * Initializes week adapter
      * requires that all the ride data is loaded
+     * Partitions rides into weeks and sums stats into a week overview. Partitioned are started in an int[] {startingIndex, endingIndex}
      */
     public void init(){
-        if(!inited && list.size() >= 1) {
-            int j = 0;
-            list.add(new BasicRideData(rides.get(0)));
-            for (int i = 1; i < rides.size(); ++i) {
-                RideOverview prev = rides.get(i);
-                if (isSameDay(rides.get(i - 1).getDate().getTime(), prev.getDate().getTime())) {
-                    list.set(j, list.get(j).add(rides.get(i)));
-                } else {
-                    list.add(new BasicRideData(rides.get(i)));
-                    ++j;
-                }
-
-            }
+        if(!inited && rides.size() >= 1) {
             long timeBetween = System.currentTimeMillis() - rides.get(rides.size() - 1).getDate().getTime();
             totalDays = TimeUnit.DAYS.convert(timeBetween, TimeUnit.MILLISECONDS);
             numWeeks = (int) Math.ceil(totalDays / 7.f);
             Calendar now = Calendar.getInstance();
             now.setTime(new Date()); //sets dat to now
-            latestDayOfWeek = (now.get(Calendar.DAY_OF_WEEK) + 5) % 7; //convert Sunday (1) to Saturday (7) to Monday (0) to Sunday (7)
+            latestDayOfWeek = (now.get(Calendar.DAY_OF_WEEK) + 5) % 7; //convert Sunday (1) to Saturday (7) to Monday (0) to Sunday (6)
             now.setTime(rides.get(rides.size() - 1).getDate());
             firstDayOfWeek = (now.get(Calendar.DAY_OF_WEEK) + 5) % 7;
+            for(int i = 0; i < numWeeks; ++i){
+                ArrayList<Integer> indices = getActivityWeek(i);
+                int[] indexRange = indices.size() >= 1 ? new int[] {indices.get(0), indices.get(indices.size() - 1)} : new int[]{0, -1};
+                RideOverview overview = new RideOverview();
+                for(int k = indexRange[0]; k < indexRange[1]; ++k){
+                    overview.setDistance(overview.getDistance() + rides.get(k).getDistance());
+                    overview.setMovingTime(overview.getMovingTime() + rides.get(k).getMovingTime());
+                    overview.setTotalTime(overview.getTotalTime() + rides.get(k).getTotalTime());
+                    overview.setClimbed(overview.getClimbed() + rides.get(k).getClimbed());
+                    overview.setAvgSpeed(overview.getAverageSpeed() + rides.get(k).getAverageSpeed());
+                    overview.setPower(overview.getPower() + rides.get(k).getPower());
+                    long day = (System.currentTimeMillis() - (latestDayOfWeek * (1000 * 3600 * 24))) - (long)i * 1000 * 3600 * 24 * 7; //epoch time of start date
+                    Date startDate = new Date(day);
+                    overview.setDate(startDate);
+                    overview.setName("Week of " + new SimpleDateFormat("MMM dd yyyy").format(startDate));
+
+                }
+                overview.setPower(overview.getPower() / (indexRange[1] - indexRange[0]));
+                overview.setAvgSpeed(overview.getAverageSpeed() / (indexRange[1] - indexRange[0]));
+                if(filter == null || overview.doesApply(filter)){
+                    weekOverview.add(overview);
+                    weekIndexes.add(indexRange);
+                }
+
+            }
+            notifyItemRangeInserted(0, weekOverview.size());
             inited = true;
         }
     }
@@ -135,107 +183,115 @@ class WeekViewAdapter extends RecyclerView.Adapter<WeekViewAdapter.WeekViewHolde
         return new WeekViewHolder(v);
     }
 
+    /**
+     * Adds all rides in between the range index into the view holder
+     * Iterates day by day in a week. For each day, adds all activities that occur on that day to the view holder
+     * @param holder
+     * @param position
+     */
     @Override
     public void onBindViewHolder(@NonNull WeekViewHolder holder, int position) {
-        ArrayList<BasicRideData> rides = getActivityWeek(position);
-        long day = (System.currentTimeMillis() - (latestDayOfWeek * (1000 * 3600 * 24))) - (long)position * 1000 * 3600 * 24 * 7; //epoch time of start date
-        Date startDate = new Date(day);
-        ((TextView)holder.v.findViewById(R.id.weekDate)).setText("Week of " + new SimpleDateFormat("MMM dd yyyy").format(startDate));
-        double distance = 0, elevation = 0;
-        int time = 0;
-        for(int i = 0, j = rides.size() - 1; i < 7 && j >= 0; ++i){
-            long dayToAdd = day + i * 1000 * 3600 * 24;
+        RideOverview overview = weekOverview.get(position);
+        int[] range = weekIndexes.get(position);
+        ((TextView)holder.v.findViewById(R.id.weekDate)).setText(overview.getName());
+        for(int i = 0, j = range[1]; i < 7 && j >= range[0]; ++i){
+            long dayToAdd = overview.getDate().getTime() + i * 1000 * 3600 * 24;
             View view = holder.days[i];
-            int activityTime = 0;
-            if(isSameDay(rides.get(j).date.getTime(), dayToAdd)){
-                ((TextView)view.findViewById(R.id.dayTime)).setText(TimeSpan.fromSeconds(rides.get(j).time));
-                ((TextView)view.findViewById(R.id.dayDistance)).setText(String.format("%.2f miles", rides.get(j).distance));
-                distance += rides.get(j).distance;
-                time += rides.get(j).time;
-                elevation += rides.get(j).elevation;
-                activityTime = rides.get(j).time;
+            if(RideOverview.isSameDay(rides.get(j).getDate(), dayToAdd)){
+                ((TextView)view.findViewById(R.id.dayTime)).setText(TimeSpan.fromSeconds(rides.get(j).getMovingTime()));
+                ((TextView)view.findViewById(R.id.dayDistance)).setText(String.format("%.2f miles", rides.get(j).getDistance() * RideOverview.METERS_MILES_CONVERSION));
+                int k = j;
+                ArrayList<RideOverview> duplications = new ArrayList<>();
+                duplications.add(rides.get(j));
+                while(k > 0 && RideOverview.isSameDay(rides.get(--k).getDate(), dayToAdd)) duplications.add(rides.get(k));
                 final int clickListenerId = j;
                 --j;
+
+                //color coding based on exertion and race
+                boolean isRace = false;
+                int exertion = 0;
+                for(RideOverview r : duplications) {
+                    isRace = r.getRace() || isRace;
+                    exertion = Math.max(exertion, r.getExertion());
+                }
+                if(isRace){
+                    ((TextView)view.findViewById(R.id.dayName)).setTextColor(Util.rgba(1, 0, 0, 0.8f));
+                    ((TextView)view.findViewById(R.id.dayDistance)).setTextColor(Util.rgba(1, 0, 0, 0.8f));
+                }
+                if(exertion > 0)
+                    ((CardView)view.findViewById(R.id.weekItemCard)).setCardBackgroundColor(exertion <= 5 ? Util.rgba(exertion / 5.f, 1.f, 0, 1) : Util.rgba(1.0f, (10 - exertion) / 4.f, 0, 1));
 
                 view.setOnClickListener(new View.OnClickListener() {
                     @Override
                     public void onClick(View view) {
-                        if(rides.get(clickListenerId).rides.size() > 1) {
+                        if(duplications.size() > 1) {
+                            duplications.add(rides.get(clickListenerId));
                             for (Observer o : observers) {
-                                o.notify(new ObserverEventArgs(ObserverNotifications.ACTIVITY_SELECT_MULTIPLE_NOTIFY, rides.get(clickListenerId).rides, view));
+                                o.notify(new ObserverEventArgs(ObserverNotifications.ACTIVITY_SELECT_MULTIPLE_NOTIFY, duplications, view));
                             }
                         }else{
                             for (Observer o : observers) {
-                                o.notify(new ObserverEventArgs(ObserverNotifications.ACTIVITY_SELECT_NOTIFY, rides.get(clickListenerId).rides.get(0).getId(), view));
+                                o.notify(new ObserverEventArgs(ObserverNotifications.ACTIVITY_SELECT_NOTIFY, rides.get(clickListenerId), view));
                             }
                         }
 
                     }
                 });
-            }else if(rides.get(j).date.after(new Date(dayToAdd))){
+            }else if(rides.get(j).getDate().after(new Date(dayToAdd))){ //more days that rides, added all rides that occured on previous days already and next ride occurs on a day we didn't iterate up to yet. So no activity on this day
                 ((TextView)view.findViewById(R.id.dayDistance)).setText("Rest");
                 ((TextView)view.findViewById(R.id.dayTime)).setText("");
-                activityTime = 0;
             }
+
+
         }
-        ((TextView)holder.v.findViewById(R.id.weekTime)).setText(TimeSpan.fromSeconds(time));
-        ((TextView)holder.v.findViewById(R.id.weekDistance)).setText(String.format("%.2f miles", distance));
-        ((TextView)holder.v.findViewById(R.id.weekElevation)).setText(String.format("%.2f ft", elevation));
+        ((TextView)holder.v.findViewById(R.id.weekTime)).setText(TimeSpan.fromSeconds(weekOverview.get(position).getMovingTime()));
+        ((TextView)holder.v.findViewById(R.id.weekDistance)).setText(String.format("%.2f miles", weekOverview.get(position).getDistance() * RideOverview.METERS_MILES_CONVERSION));
+        ((TextView)holder.v.findViewById(R.id.weekElevation)).setText(String.format("%.2f ft", weekOverview.get(position).getClimbed() * RideOverview.METERS_FEET_CONVERSION));
     }
 
     @Override
     public int getItemCount() {
-        return numWeeks;
+        return weekOverview.size();
     }
 
     /**
-     * Gets all the activities that occurred in the week relative to today.
+     * Gets all the activities that occurred in the week relative to today. Returns indexes to be used to index the rideList list
      * Binary searches through rideList based on date
      * @param weekFromToday 0 indexed number identifying the week from today to fetch
-     * @return list of activities ordered most recent to earlier (Sun to Mon)
+     * @return list of activity indexes ordered most recent to earlier (Sun to Mon)
      */
-    private ArrayList<BasicRideData> getActivityWeek(int weekFromToday){
-        ArrayList<BasicRideData> weekRides = new ArrayList<>();
+    private ArrayList<Integer> getActivityWeek(int weekFromToday){
+        ArrayList<Integer> weekRides = new ArrayList<>();
         //makes sure startDate is always a monday and endDate is always a sunday to align weeks
         Date endDate = new Date((System.currentTimeMillis() + (6 - latestDayOfWeek) * (long)(1000 * 3600 * 24)) - (long)weekFromToday * 1000 * 3600 * 24 * 7); //first term casts to long bc of System.currentTimeMillis(), second term of subtraction does not implicitly
         Date startDate = new Date((System.currentTimeMillis() - (latestDayOfWeek * (long)(1000 * 3600 * 24))) - (long)weekFromToday * 1000 * 3600 * 24 * 7);
         long key = (endDate.getTime() + startDate.getTime()) / 2;
         int id = 0;
-        int start = 0, end = list.size() - 1; //start and end in memory not time
+        int start = 0, end = rides.size() - 1; //start and end in memory not time
         //items towards end of list is later
 
         //interpolated binary search based on date
         do {
-            id = (int) Math.round((list.get(start).date.getTime() - key) / (double) (list.get(start).date.getTime() - list.get(end).date.getTime()) * (end - start) + start);
+            id = (int) Math.round((rides.get(start).getDate().getTime() - key) / (double) (rides.get(start).getDate().getTime() - rides.get(end).getDate().getTime()) * (end - start) + start);
             if(id < start) id = start;
             else if(id >= end) id = end;
-            if((list.get(id).date.after(startDate) || isSameDay(list.get(id).date, startDate)) &&
-                    (list.get(id).date.before(endDate) || isSameDay(list.get(id).date, endDate))){
-                for(int i = Math.max(0, id - 7); i < Math.min(list.size(), id + 8); ++i){
-                    if((list.get(i).date.after(startDate) || isSameDay(startDate, list.get(i).date)) &&
-                            (list.get(i).date.before(endDate) || isSameDay(list.get(i).date, endDate))){
-                        weekRides.add(list.get(i));
+            if((rides.get(id).getDate().after(startDate) || RideOverview.isSameDay(rides.get(id).getDate(), startDate)) &&
+                    (rides.get(id).getDate().before(endDate) || RideOverview.isSameDay(rides.get(id).getDate(), endDate))){
+                for(int i = Math.max(0, id - 7); i < Math.min(rides.size(), id + 8); ++i){
+                    if((rides.get(i).getDate().after(startDate) || RideOverview.isSameDay(startDate, rides.get(i).getDate())) &&
+                            (rides.get(i).getDate().before(endDate) || RideOverview.isSameDay(rides.get(i).getDate(), endDate))){
+                        weekRides.add(i);
                     }
                 }
                 break;
             }
-            else if(list.get(id).date.before(startDate)){
+            else if(rides.get(id).getDate().before(startDate)){
                 end = id - 1;
-            }else if(list.get(id).date.after(endDate)){
+            }else if(rides.get(id).getDate().after(endDate)){
                 start = id + 1;
             }
-        } while(start <= end && start < list.size() && end < list.size());
+        } while(start <= end && start < rides.size() && end < rides.size());
         return weekRides;
-    }
-    private boolean isSameDay(long time1, long time2){
-        return isSameDay(new Date(time1), new Date(time2));
-    }
-    private boolean isSameDay(Date time1, Date time2){
-        SimpleDateFormat fmt = new SimpleDateFormat("yyyyMMdd");
-        return fmt.format(time1).equals(fmt.format(time2));
-    }
-    private boolean isSameDay(long time1, Date time2){
-        return isSameDay(new Date(time1), time2);
     }
 
     @Override
@@ -264,34 +320,5 @@ class WeekViewAdapter extends RecyclerView.Adapter<WeekViewAdapter.WeekViewHolde
                 row.addView(days[i]);
             }
         }
-    }
-    private class BasicRideData {
-        public Date date;
-        public String activity;
-        public double distance, elevation;
-        public int time;
-        public ArrayList<RideOverview> rides;
-        public BasicRideData(RideOverview r){
-            rides = new ArrayList<RideOverview>();
-            date = r.getDate();
-            distance = r.getDistance() * RideOverview.METERS_MILES_CONVERSION;
-            time = r.getMovingTime();
-            activity = r.getActivityType();
-            elevation = r.getClimbed() * RideOverview.METERS_FEET_CONVERSION;
-            rides.add(r);
-        }
-        public BasicRideData(Date d){
-            date = d;
-        }
-        public BasicRideData add(RideOverview r){
-            SimpleDateFormat fmt = new SimpleDateFormat("yyyyMMdd");
-            if(fmt.format(date).equals(r.getDate())){
-                distance += r.getDistance();
-                time += r.getMovingTime();
-                rides.add(r);
-            }
-            return this;
-        }
-
     }
 }

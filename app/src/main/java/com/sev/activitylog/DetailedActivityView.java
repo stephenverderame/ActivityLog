@@ -6,6 +6,8 @@ import androidx.appcompat.widget.Toolbar;
 import android.app.Application;
 import android.content.Context;
 import android.content.Intent;
+import android.graphics.Color;
+import android.os.Build;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.KeyEvent;
@@ -16,23 +18,32 @@ import android.view.MotionEvent;
 import android.view.ScaleGestureDetector;
 import android.view.View;
 import android.widget.Button;
+import android.widget.CheckBox;
+import android.widget.CompoundButton;
 import android.widget.EditText;
 import android.widget.LinearLayout;
+import android.widget.SeekBar;
 import android.widget.TextView;
 
 import java.io.BufferedReader;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
 import java.io.PrintStream;
 import java.io.PrintWriter;
+import java.io.Serializable;
 import java.text.SimpleDateFormat;
+import java.util.ArrayList;
 import java.util.Timer;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+
+import static android.view.View.GONE;
 
 public class DetailedActivityView extends AppCompatActivity implements Observer {
 
@@ -56,11 +67,12 @@ public class DetailedActivityView extends AppCompatActivity implements Observer 
 
     private TouchState t;
     private String notesFilename;
-    private boolean dirtyNotes;
+    private boolean dirtyNotes, dirtyActivity;
     private String activityNotes;
     private LinearLayout masterContainer;
     private View detailPage;
     private Future<Pos[][]> heightMap;
+    private MapImage map;
     private StorageModel model;
     private boolean shouldSave;
     @Override
@@ -75,10 +87,11 @@ public class DetailedActivityView extends AppCompatActivity implements Observer 
         token = getIntent().getParcelableExtra("auth_token");
         ((Button)findViewById(R.id.viewGLBtn)).setOnClickListener(new View.OnClickListener() {
             @Override
+            //Switch to gl view and push state onto stack
             public void onClick(View view) {
                 NavigationSingleton.getInstance().pushState(new NavigationCommand(DetailedActivityView.this, new Object[]{rideData}, new NavigationAction() { //pushes current state so we can go back in the gl view
                     @Override
-                    public void navigate(AppCompatActivity fromActivity, AppCompatActivity destActivity, Object[] dstState) {
+                    public void navigate(AppCompatActivity fromActivity, AppCompatActivity destActivity, Object[] dstState, Object... args) {
                         if(fromActivity == destActivity){
                             masterContainer.removeAllViews();
                             masterContainer.addView(detailPage);
@@ -91,11 +104,13 @@ public class DetailedActivityView extends AppCompatActivity implements Observer 
             }
         });
         dirtyNotes = false;
+        dirtyActivity = false;
         Toolbar actionBar = (Toolbar)findViewById(R.id.detailToolbar);
         actionBar.inflateMenu(R.menu.top_detail_nav_menu);
         setSupportActionBar(actionBar);
         getSupportActionBar().setDisplayHomeAsUpEnabled(true);
         getSupportActionBar().setHomeAsUpIndicator(R.drawable.back_arrow); //creates an action bar with a menu item on the left side
+        //Notes text changed
         ((EditText)findViewById(R.id.rideNotes)).setOnEditorActionListener(new TextView.OnEditorActionListener() {
             @Override
             public boolean onEditorAction(TextView textView, int i, KeyEvent keyEvent) {
@@ -104,16 +119,41 @@ public class DetailedActivityView extends AppCompatActivity implements Observer 
                 return true;
             }
         });
+        //Exertion meter changed
+        ((SeekBar)findViewById(R.id.exertion_meter)).setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
+            @Override
+            public void onProgressChanged(SeekBar seekBar, int i, boolean b) {
+                ((TextView)findViewById(R.id.exertion_label)).setText("Exertion Level: " + i);
+                dirtyActivity = true;
+                seekBar.getThumb().setTint(i <= 5 ? Util.rgba(i / 5.f, 1.f, 0, 1) : Util.rgba(1.0f, (10 - i) / 4.f, 0, 1));
+                rideBasics.setExertion(i);
+            }
+
+            @Override
+            public void onStartTrackingTouch(SeekBar seekBar) {
+
+            }
+
+            @Override
+            public void onStopTrackingTouch(SeekBar seekBar) {
+
+            }
+        });
+        ((CheckBox)findViewById(R.id.race_check)).setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
+            @Override
+            public void onCheckedChanged(CompoundButton compoundButton, boolean b) {
+                dirtyActivity = true;
+                rideBasics.setRace(b);
+            }
+        });
+        ((CheckBox)findViewById(R.id.race_check)).setChecked(rideBasics.getRace());
+        ((SeekBar)findViewById(R.id.exertion_meter)).setProgress(rideBasics.getExertion());
         model = new StorageModel(this);
         Future<DetailedRide> details = model.getRideDetails(rideBasics.getId());
         try {
             rideData = details.get();
             Log.d("Detail", "Got details from storage!");
-        } catch (ExecutionException e) {
-            e.printStackTrace();
-        } catch (InterruptedException e) {
-            e.printStackTrace();
-        }
+        } catch (Exception e) {e.printStackTrace();}
         if(rideData != null){ //if data is cached
             Log.d("Detail", "Data exists!");
             rideData.setOverview(rideBasics);
@@ -136,6 +176,8 @@ public class DetailedActivityView extends AppCompatActivity implements Observer 
     public void onBackPressed(){
         if(NavigationSingleton.getInstance().empty())
             moveTaskToBack(true);
+        else if(dirtyActivity)
+            NavigationSingleton.getInstance().goBack(this, rideBasics);
         else
             NavigationSingleton.getInstance().goBack(this);
     }
@@ -162,22 +204,36 @@ public class DetailedActivityView extends AppCompatActivity implements Observer 
                     view.setInfo("Moving Time", TimeSpan.fromSeconds((long) rideBasics.getMovingTime()), 0, 1);
                     view.setInfo("Elevation", String.format("%.2f ft", rideBasics.getClimbed() * RideOverview.METERS_FEET_CONVERSION), 0, 2);
                     view.setInfo("Gear", rideData.getGearName(), 1, 0);
-                    view.setInfo("Average Speed", String.format("%.1f mph", rideBasics.getAverageSpeed() * RideOverview.METERS_MILES_CONVERSION / 3600.0), 1, 1);
+                    view.setInfo("Average Speed", String.format("%.1f mph", rideBasics.getAverageSpeed() * RideOverview.METERS_MILES_CONVERSION * 3600.0), 1, 1);
                     view.setInfo("Average Power", String.format("%.2f W", rideBasics.getPower()), 1, 2);
                     view.setInfo("Total Time", TimeSpan.fromSeconds((long) rideBasics.getTotalTime()), 2, 0);
                     view.setInfo("Activity", rideBasics.getActivityType(), 2, 1);
                     view.setFont(new ActivityViewFontBuilder().labelSize(16).infoSize(12).build());
                     view.invalidate();
-                    if(rideData.getImg() != null)
-                        notify(new ObserverEventArgs(ObserverNotifications.MAP_LOAD_NOTIFY, rideData.getImg()));
-                    else {
-                        RoadMapFactory rmap = new RoadMapFactory();
-                        rmap.attach(this);
-                        rmap.makeAsync(rmap.boundsFromRoute(rideData.getRoute()));
+                    ArrayList<Pos> route;
+                    if((route = rideData.getRoute()) != null) {
+                        MapBounds bounds = MapFactory.boundsFromRoute(route);
+                        CacheEntry ce = RepeatCache.getInstance(this).get(bounds);
+                        if (ce == null) {
+                            RoadMapFactory rmap = new RoadMapFactory();
+                            rmap.attach(this);
+                            rmap.makeAsync(bounds);
+                        } else {
+                            Log.d("Map", "Here and opentopo data already in cache!");
+                            heightMap = Executors.newSingleThreadExecutor().submit(new Callable<Pos[][]>() {
+                                @Override
+                                public Pos[][] call() throws Exception {
+                                    return ce.heights;
+                                }
+                            });
+                            notify(new ObserverEventArgs(ObserverNotifications.MAP_LOAD_NOTIFY, ce.map));
+                        }
+                    }else{//not a ride - no map data
+                        findViewById(R.id.viewGLBtn).setVisibility(GONE);
                     }
-                    notesFilename = (rideBasics.getDate().getTime() / 1000) + "_notes.txt";
-                    openNotes(notesFilename);
                 }
+                notesFilename = (rideBasics.getId()) + "_notes.txt";
+                openNotes(notesFilename);
                 break;
             }
             case URI_NOTIFY:
@@ -193,18 +249,9 @@ public class DetailedActivityView extends AppCompatActivity implements Observer 
                 this.route = route;
                 view.setMap(route, 3, 0, 7, 3);
                 view.invalidate();
-                rideData.setImg(img);
-                if(rideData.getHeightMap() == null) {
+                map = img;
+                if(heightMap == null) {
                     heightMap = Pos.getHeightMap(120, 120, new Pos(route.mapBounds.top, route.mapBounds.left), new Pos(route.mapBounds.bottom, route.mapBounds.right));
-                    shouldSave = true;
-                }
-                else {
-                    heightMap = Executors.newSingleThreadExecutor().submit(new Callable<Pos[][]>() {
-                        @Override
-                        public Pos[][] call() throws Exception {
-                            return rideData.getHeightMap();
-                        }
-                    });
                 }
                 break;
             }
@@ -237,15 +284,20 @@ public class DetailedActivityView extends AppCompatActivity implements Observer 
                 break;
         }
     }
+
+    /**
+     * Read saved notes and load them into the text view
+     * @param filename
+     */
     private void openNotes(String filename) {
         if(activityNotes == null) {
-            StringBuilder notes = new StringBuilder();
             try (BufferedReader reader = new BufferedReader(new InputStreamReader(openFileInput(filename)))) {
+                StringBuilder builder = new StringBuilder();
                 String line;
-                while ((line = reader.readLine()) != null)
-                    notes.append(line).append('\n');
-                ((EditText) findViewById(R.id.rideNotes)).getText().append(notes.toString());
-                activityNotes = notes.toString();
+                while((line = reader.readLine()) != null)
+                    builder.append(line);
+                ((EditText)findViewById(R.id.rideNotes)).setText(builder.toString());
+                activityNotes = builder.toString();
             } catch (FileNotFoundException e) {
             } catch (IOException e) {
                 e.printStackTrace();
@@ -254,10 +306,11 @@ public class DetailedActivityView extends AppCompatActivity implements Observer 
     }
     private void saveNotes(){
         if(notesFilename != null) {
-            try (PrintWriter writer = new PrintWriter(new PrintStream(openFileOutput(notesFilename, Context.MODE_PRIVATE)))) {
-                String notes = ((EditText) findViewById(R.id.rideNotes)).getText().toString();
-                writer.print(notes);
+            try (PrintWriter out = new PrintWriter((openFileOutput(notesFilename, Context.MODE_PRIVATE)))) {
+                out.write(((EditText)findViewById(R.id.rideNotes)).getText().toString());
             } catch (FileNotFoundException e) {
+                e.printStackTrace();
+            } catch (IOException e) {
                 e.printStackTrace();
             }
         }
@@ -267,27 +320,29 @@ public class DetailedActivityView extends AppCompatActivity implements Observer 
     protected void onStop(){
         if(dirtyNotes) saveNotes();
         gl.destructor();
-        if(heightMap.isDone()) {
-            try {
-                rideData.setHeightMap(heightMap.get());
-            } catch (ExecutionException e) {
-                e.printStackTrace();
-            } catch (InterruptedException e) {
-                e.printStackTrace();
-            }
+        if(shouldSave) {
+            model.saveDetailedRide(rideData);
         }
-        if(shouldSave) model.saveDetailedRide(rideData);
+        if(heightMap != null && map != null){
+            RepeatCache.getInstance(this).save(map, heightMap);
+            RepeatCache.getInstance(this).serialize(this);
+        }
         super.onStop();
     }
 
     @Override
+    //Top nav bar touch
     public boolean onOptionsItemSelected(MenuItem item){
         if(item.getItemId() == android.R.id.home){
-            NavigationSingleton.getInstance().goBack(this);
+            if(dirtyActivity)
+                NavigationSingleton.getInstance().goBack(this, rideBasics);
+            else
+                NavigationSingleton.getInstance().goBack(this);
             return true;
         }
         return super.onOptionsItemSelected(item);
     }
+    //Camera controls for opengl view. One finger -> translate. Two fingers (one static in bottom left) -> rotate. Pinch -> zoom
     private void onGLTouch(MotionEvent e){
         switch(e.getActionMasked()){
             case MotionEvent.ACTION_MOVE:

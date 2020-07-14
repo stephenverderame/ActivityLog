@@ -2,6 +2,7 @@ package com.sev.activitylog;
 
 public class TimeSpan {
     /**
+     * Converts an integer amount of seconds to a String in HH:mm:ss format
      * @param seconds
      * @return string in HH:mm:ss format
      */

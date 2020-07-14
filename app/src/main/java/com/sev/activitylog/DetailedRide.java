@@ -16,8 +16,6 @@ public class DetailedRide implements Serializable {
     private String description;
     private String gearName;
     private Pos start, end;
-    private MapImage img;
-    private Pos[][] heightMap;
     public DetailedRide(JSONObject ride) throws JSONException, ParseException {
         init(ride);
     }
@@ -25,27 +23,28 @@ public class DetailedRide implements Serializable {
         basicInfo = new RideOverview(ride);
         JSONObject map = ride.getJSONObject("map");
         polyline = map.getString("polyline");
-        JSONObject gear = ride.getJSONObject("gear");
-        gearName = gear.getString("name");
         description = ride.getString("description");
         Pos p = new Pos();
-        JSONArray jsonPos = ride.getJSONArray("start_latlng");
-        p.lat = jsonPos.getDouble(0);
-        p.lon = jsonPos.getDouble(1);
-        start = p;
-        jsonPos = ride.getJSONArray("end_latlng");
-        p.lat = jsonPos.getDouble(0);
-        p.lon = jsonPos.getDouble(1);
-        end = p;
+        try {
+            JSONObject gear = ride.getJSONObject("gear");
+            gearName = gear.getString("name");
+            JSONArray jsonPos = ride.getJSONArray("start_latlng");
+            p.lat = jsonPos.getDouble(0);
+            p.lon = jsonPos.getDouble(1);
+            start = p;
+            jsonPos = ride.getJSONArray("end_latlng");
+            p.lat = jsonPos.getDouble(0);
+            p.lon = jsonPos.getDouble(1);
+            end = p;
+        }catch (JSONException e){
+            //Not a ride
+        }
     }
     public RideOverview getOverview() {return basicInfo;}
     public String getGearName() {return gearName;}
     public String getDesc() {return description;}
-    public ArrayList<Pos> getRoute() {return Pos.decodePolyline(polyline, 5);}
+    public ArrayList<Pos> getRoute() {
+        return polyline == null || polyline.equalsIgnoreCase("null") || polyline.length() == 0 ? null : Pos.decodePolyline(polyline, 5);}
 
-    public MapImage getImg() {return img;}
-    public Pos[][] getHeightMap() {return heightMap;}
-    public void setImg(MapImage bmp) {img = bmp;}
-    public void setHeightMap(Pos[][] hm) {heightMap = hm;}
     public void setOverview(RideOverview ov) {basicInfo = ov;}
 }

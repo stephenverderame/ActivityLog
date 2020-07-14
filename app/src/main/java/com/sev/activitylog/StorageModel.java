@@ -183,8 +183,8 @@ public class StorageModel extends RideModel {
                 rides = (CircularLinkedList<DetailedRide>)input.readObject();
             } catch (Exception e){
                 e.printStackTrace();
-                ids = new CircularLinkedList<>(Long.class, 20);
-                rides = new CircularLinkedList<>(DetailedRide.class, 20);
+                ids = new CircularLinkedList<>(Long.class, 100);
+                rides = new CircularLinkedList<>(DetailedRide.class, 100);
             }
             ids.add(ride.getOverview().getId());
             rides.add(ride);

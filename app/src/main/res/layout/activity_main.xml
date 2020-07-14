@@ -26,16 +26,14 @@
                 android:gravity="center"
                 android:text="Loading..."
                 android:id="@+id/loadingText"/>
-            <com.sev.activitylog.FilterView android:layout_width="match_parent" android:layout_height="wrap_content"
+            <fragment android:name="com.sev.activitylog.FilterFragment"
+                android:layout_width="match_parent" android:layout_height="wrap_content"
                 android:id="@+id/filterView"/>
-            <androidx.recyclerview.widget.RecyclerView
-                android:scrollbars="vertical"
+            <FrameLayout
                 android:layout_width="match_parent"
                 android:layout_height="match_parent"
-                android:id="@+id/recycle"
-                android:layout_weight="90">
-
-            </androidx.recyclerview.widget.RecyclerView>
+                android:layout_weight="90"
+                android:id="@+id/main_fragment_container"/>
             <com.google.android.material.bottomnavigation.BottomNavigationView
                 android:id="@+id/navBar"
                 android:layout_width="match_parent"

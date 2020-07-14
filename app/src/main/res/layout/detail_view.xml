@@ -13,15 +13,17 @@
     android:orientation="vertical"
     android:layout_marginTop="5dp"
     tools:context=".DetailedActivityView">
+
     <com.sev.activitylog.ActivityView
+        android:id="@+id/detailView"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_weight=".50"
         android:paddingLeft="20dp"
         android:paddingTop="20dp"
         android:paddingRight="20dp"
-        android:paddingBottom="20dp"
-        android:id="@+id/detailView"/>
+        android:paddingBottom="20dp" />
+
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="match_parent"
@@ -44,6 +46,21 @@
         android:inputType="textMultiLine"
         android:scrollbars="vertical"
         android:id="@+id/rideNotes"/>
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Exertion Level:"
+            android:id="@+id/exertion_label"/>
+        <SeekBar
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:id="@+id/exertion_meter"
+            android:max="10" android:min="0"/>
+        <CheckBox
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:hint="Race"
+            android:id="@+id/race_check"/>
     </LinearLayout>
     <Button
         android:layout_width="wrap_content"

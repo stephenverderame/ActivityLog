@@ -1,7 +1,6 @@
 package com.sev.activitylog;
 
 
-import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
@@ -9,11 +8,13 @@ import java.io.Serializable;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.Date;
+import java.util.List;
 
 public class RideOverview implements Serializable {
     public static transient final double METERS_MILES_CONVERSION = 0.000621371; //this data isn't serialized
     public static transient final double METERS_FEET_CONVERSION = 3.28084;
 
+    private static final long serialVerionUID = 56746437589L;
     private double distance, climbed;
     private int time, totalTime;
     private String name;
@@ -23,6 +24,8 @@ public class RideOverview implements Serializable {
     private String activityType;
     private float maxSpeed, averageSpeed;
     private float maxWatts, avgWatts, work;
+    private int exertion;
+    private boolean isRace;
     public RideOverview(String name, long id){
         this.name = name;
         this.id = id;
@@ -46,6 +49,14 @@ public class RideOverview implements Serializable {
             setKJ((float) ride.getDouble("kilojoules"));
         setActivityType(ride.getString("type"));
         gearId = ride.getString("gear_id");
+        exertion = 0; isRace = false;
+    }
+    public RideOverview() {
+        distance = climbed = maxSpeed = averageSpeed = maxWatts = avgWatts = work = id = time = totalTime = 0;
+        name = "";
+        date = new Date(0);
+        exertion = 0;
+        isRace = false;
     }
     public void setMovingTime(int time) {
         this.time = time;
@@ -76,27 +87,110 @@ public class RideOverview implements Serializable {
     public void setMaxPow(float mx) {maxWatts = mx;}
     public void setKJ(float kilojoules) {work = kilojoules;}
     public float getAverageSpeed() {return averageSpeed;}
+    public float getMaxSpeed() {return maxSpeed;}
     public float getPower() {return avgWatts;}
     public int getTotalTime() {return totalTime;}
+    public void setName(String name) {this.name = name;}
+    public float getKJ() {return work;}
+    public void setId(long id) {this.id = id;}
+    public void setRace(boolean race){
+        this.isRace = race;
+    }
+    public boolean getRace() {return isRace;}
+    public void setExertion(int exertion){
+        this.exertion = exertion;
+    }
+    public int getExertion(){
+        return exertion;
+    }
 
+    /**
+     *
+     * @param filter
+     * @return true if the ride matches the filter
+     */
     public boolean doesApply(SearchFilters filter){
         if(!filter.isDefaultValue(filter.name) && !name.toLowerCase().contains(filter.name.toLowerCase())) return false;
         if(!filter.isDefaultValue(filter.start) && filter.start.after(date)) return false;
         if(!filter.isDefaultValue(filter.end) && filter.end.before(date)) return false;
-        if(!filter.isDefaultValue(filter.gear) && filter.gear.toLowerCase() != gearId.toLowerCase()) return false;
-        if(!filter.isDefaultValue(filter.workoutType) && filter.workoutType != activityType) return false;
+        if(!filter.isDefaultValue(filter.gear) && !filter.gear.equalsIgnoreCase(gearId)) return false;
+        if(!filter.isDefaultValue(filter.workoutType) && !filter.workoutType.equalsIgnoreCase(activityType)) return false;
 
-        if(!filter.isDefaultValue(filter.maxDist) && filter.maxDist < distance) return false;
-        if(!filter.isDefaultValue(filter.minDist) && filter.minDist > distance) return false;
-        if(!filter.isDefaultValue(filter.maxElevation) && filter.maxElevation < climbed) return false;
-        if(!filter.isDefaultValue(filter.minElevation) && filter.minElevation > climbed) return false;
-        if(!filter.isDefaultValue(filter.maxSpeed) && filter.maxSpeed < averageSpeed) return false;
-        if(!filter.isDefaultValue(filter.minSpeed) && filter.minSpeed > averageSpeed) return false;
+        if(!filter.isDefaultValue(filter.maxDist) && filter.maxDist < distance * METERS_MILES_CONVERSION) return false;
+        if(!filter.isDefaultValue(filter.minDist) && filter.minDist > distance * METERS_MILES_CONVERSION) return false;
+        if(!filter.isDefaultValue(filter.maxElevation) && filter.maxElevation < climbed * METERS_FEET_CONVERSION) return false;
+        if(!filter.isDefaultValue(filter.minElevation) && filter.minElevation > climbed * METERS_FEET_CONVERSION) return false;
+        if(!filter.isDefaultValue(filter.maxSpeed) && filter.maxSpeed < averageSpeed * METERS_MILES_CONVERSION * 3600) return false;
+        if(!filter.isDefaultValue(filter.minSpeed) && filter.minSpeed > averageSpeed * METERS_MILES_CONVERSION * 3600) return false;
         if(!filter.isDefaultValue(filter.maxTime) && filter.maxTime < time) return false;
         if(!filter.isDefaultValue(filter.minTime) && filter.minTime > time) return false;
         if(!filter.isDefaultValue(filter.maxPow) && filter.maxPow < avgWatts) return false;
         if(!filter.isDefaultValue(filter.minPow) && filter.minPow > avgWatts) return false;
         return true;
+    }
+    public static boolean isSameDay(long time1, long time2){
+        return isSameDay(new Date(time1), new Date(time2));
+    }
+    public static boolean isSameDay(Date time1, Date time2){
+        SimpleDateFormat fmt = new SimpleDateFormat("yyyyMMdd");
+        return fmt.format(time1).equals(fmt.format(time2));
+    }
+    public static boolean isSameDay(Date time1, long time2){
+        return isSameDay(time1, new Date(time2));
+    }
+    public static boolean isSameDay(RideOverview a, RideOverview b){
+        return isSameDay(a.date, b.date);
+    }
+    public static boolean isSameDay(RideOverview a, Date b){
+        return isSameDay(a.date, b);
+    }
+
+    /**
+     * Interpolated binary search to find the index of an activity on the specified date, or location of where that date should be inserted
+     * @param rides list of rides, ordered most to least recent
+     * @param d date of new ride
+     * @return
+     */
+    public static int indexOf(List<RideOverview> rides, Date d){
+        int index, start = 0, end = rides.size() - 1;
+        if(rides.get(start).date.before(rides.get(end).date)) throw new IllegalStateException("list should be ordered most recent to least recent");
+        do{
+            index = (int)Math.round((double)(end - start) / (rides.get(start).date.getTime() - rides.get(end).date.getTime()) * (rides.get(start).date.getTime() - d.getTime()) + start);
+            if(index < start) index = start;
+            if(index > end) index = end;
+            if(isSameDay(rides.get(index), d)) return index;
+            else if(rides.get(index).date.before(d)){
+                end = index - 1;
+            }
+            else if(rides.get(index).date.after(d)){
+                start = index + 1;
+            }
+        } while(start <= end);
+        return index;
+    }
+
+    /**
+     * Same as indexOf, except requires an exact match and will return -1 if no activity exists
+     * @param rides
+     * @param d
+     * @return
+     */
+    public static int indexOfExact(List<RideOverview> rides, Date d){
+        int index, start = 0, end = rides.size() - 1;
+        if(rides.get(start).date.before(rides.get(end).date)) throw new IllegalStateException("list should be ordered most recent to least recent");
+        do{
+            index = (int)Math.round((double)(end - start) / (rides.get(start).date.getTime() - rides.get(end).date.getTime()) * (rides.get(start).date.getTime() - d.getTime()) + start);
+            if(index < start) index = start;
+            if(index > end) index = end;
+            if(rides.get(index).date.equals(d)) return index;
+            else if(rides.get(index).date.before(d)){
+                end = index - 1;
+            }
+            else if(rides.get(index).date.after(d)){
+                start = index + 1;
+            }
+        } while(start <= end);
+        return -1;
     }
 
 
