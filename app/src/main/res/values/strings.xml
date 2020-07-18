@@ -51,31 +51,33 @@
         <item>Workout</item>
         <item>Yoga</item>
     </string-array>
-    <string-array name="function">
-        <item>Maximum</item>
-        <item>Mean</item>
-        <item>Median</item>
-        <item>Minimum</item>
-        <item>Mode</item>
-        <item>Summation</item>
-    </string-array>
-    <string-array name="stat">
-        <item>Average Speed</item>
-        <item>Activities</item>
-        <item>Activity Type</item>
-        <item>Calories</item>
-        <item>Distance</item>
-        <item>Elevation</item>
-        <item>Max Speed</item>
-        <item>Moving Time</item>
-        <item>Power</item>
-        <item>Total Time</item>
-    </string-array>
-    <string-array name="interval">
-        <item>Activity</item>
-        <item>Day</item>
-        <item>Week</item>
-        <item>Month</item>
-        <item>Year</item>
+    <string name="func_max">Maximum</string>
+    <string name="func_min">Minimum</string>
+    <string name="func_mean">Mean</string>
+    <string name="func_med">Median</string>
+    <string name="func_mode">Mode</string>
+    <string name="func_sum">Summation</string>
+
+    <string name="stat_speed">Average Speed</string>
+    <string name="stat_activities">Activities</string>
+    <string name="stat_activity_type">Activity Type</string>
+    <string name="stat_calories">Calories</string>
+    <string name="stat_dist">Distance</string>
+    <string name="stat_climb">Elevation</string>
+    <string name="stat_mx_speed">Max Speed</string>
+    <string name="stat_time">Moving Time</string>
+    <string name="stat_pow">Power</string>
+    <string name="stat_ttime">Total Time</string>
+
+    <string name="int_activity">Activity</string>
+    <string name="int_day">Day</string>
+    <string name="int_week">Week</string>
+    <string name="int_month">Month</string>
+    <string name="int_year">Year</string>
+    <string name="int_none">None</string>
+
+    <string-array name="graphType">
+        <item>Line</item>
+        <item>Bar</item>
     </string-array>
 </resources>

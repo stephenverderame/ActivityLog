@@ -36,7 +36,7 @@ class RemoteQuery {
     long syncTime;
 }
 public class MainActivity extends AppCompatActivity implements Observer, NavigationAction, onSearchListener {
-    private static final int MULTI_PAGE = 3, STATS_PAGE = 2, WEEK_PAGE = 1, RECENT_PAGE = 0;
+    private static final int TRENDS_PAGE = 4, MULTI_PAGE = 3, STATS_PAGE = 2, WEEK_PAGE = 1, RECENT_PAGE = 0;
     private int lastPage = RECENT_PAGE;
 
     private List<RideOverview> rideList;
@@ -83,11 +83,12 @@ public class MainActivity extends AppCompatActivity implements Observer, Navigat
             gearList = storage.getGear(isGearListIncomplete);
             finishedLoading = true;
         }
-        fragments = new DataFragment[4];
+        fragments = new DataFragment[5];
         fragments[RECENT_PAGE] = new RecentFragment(rideList, this);
         fragments[WEEK_PAGE] = new WeekFragment(rideList, this);
         fragments[STATS_PAGE] = new StatsFragment(rideList);
         fragments[MULTI_PAGE] = new RecentFragment(null, this);
+        fragments[TRENDS_PAGE] = new TrendsFragment(rideList, this);
 
         Parcelable recent;
         if((recent = getIntent().getParcelableExtra("recent_state")) != null){
@@ -136,6 +137,14 @@ public class MainActivity extends AppCompatActivity implements Observer, Navigat
                         trans.replace(R.id.main_fragment_container, fragments[STATS_PAGE]);
                         trans.commit();
                         lastPage = STATS_PAGE;
+                        break;
+                    }
+                    case R.id.graphMenuItem:
+                    {
+                        FragmentTransaction trans = getSupportFragmentManager().beginTransaction();
+                        trans.replace(R.id.main_fragment_container, fragments[TRENDS_PAGE]);
+                        trans.commit();
+                        lastPage = TRENDS_PAGE;
                         break;
                     }
                     default:

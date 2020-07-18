@@ -4,6 +4,7 @@ import android.os.Parcelable;
 
 import androidx.fragment.app.Fragment;
 
+import java.util.LinkedList;
 import java.util.List;
 
 public abstract class DataFragment extends Fragment {
@@ -26,4 +27,14 @@ public abstract class DataFragment extends Fragment {
         notifyDataChanged();
     }
     public abstract void cacheState();
+
+    protected LinkedList<RideOverview> commonFilter(SearchFilters filter){
+        LinkedList<RideOverview> rides = new LinkedList<>();
+        int start = filter.isDefaultValue(filter.start) ? data.size() - 1 : RideOverview.indexOf(data, filter.start);
+        int end = filter.isDefaultValue(filter.end) ? 0 : RideOverview.indexOf(data, filter.end);
+        for (; end <= start; ++end) {
+            if (data.get(end).doesApply(filter)) rides.add(data.get(end));
+        }
+        return rides;
+    }
 }

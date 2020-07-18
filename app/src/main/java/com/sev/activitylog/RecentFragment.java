@@ -24,12 +24,7 @@ public class RecentFragment extends DataFragment {
 
     @Override
     public void filter(SearchFilters filter) {
-        rides = new LinkedList<>();
-        int start = filter.isDefaultValue(filter.start) ? data.size() - 1 : RideOverview.indexOf(data, filter.start);
-        int end = filter.isDefaultValue(filter.end) ? 0 : RideOverview.indexOf(data, filter.end);
-        for (; end <= start; ++end) {
-            if (data.get(end).doesApply(filter)) rides.add(data.get(end));
-        }
+        rides = commonFilter(filter);
         viewAdapter = new RecentActivityAdapter(rides, mediator);
         view.setAdapter(viewAdapter);
     }

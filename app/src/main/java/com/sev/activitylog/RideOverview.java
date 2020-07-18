@@ -7,24 +7,49 @@ import org.json.JSONObject;
 import java.io.Serializable;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
+import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Set;
 
-public class RideOverview implements Serializable {
+abstract class RideStats implements Serializable {
+    protected float maxSpeed, averageSpeed;
+    protected float maxWatts, avgWatts, work;
+    protected int exertion;
+    protected double distance, climbed;
+    protected int time, totalTime;
+    protected int count;
+    protected Date date;
+    public RideStats() {
+        distance = climbed = maxSpeed = averageSpeed = maxWatts = avgWatts = work = exertion = time = totalTime = 0;
+        count = 1;
+    }
+
+    public double getDistance() {return distance;}
+    public int getMovingTime() {return time;}
+    public double getClimbed() {return climbed;}
+    public float getAverageSpeed() {return averageSpeed;}
+    public float getMaxSpeed() {return maxSpeed;}
+    public float getPower() {return avgWatts;}
+    public int getTotalTime() {return totalTime;}
+    public float getKJ() {return work;}
+    public int getExertion(){ return exertion; }
+    public int getCount() {return count;}
+    public Date getDate() {return date;}
+    public abstract String getActivityType();
+}
+
+public class RideOverview extends RideStats implements Serializable {
     public static transient final double METERS_MILES_CONVERSION = 0.000621371; //this data isn't serialized
     public static transient final double METERS_FEET_CONVERSION = 3.28084;
 
     private static final long serialVerionUID = 56746437589L;
-    private double distance, climbed;
-    private int time, totalTime;
     private String name;
-    private Date date;
     private long id;
     private String gearId;
     private String activityType;
-    private float maxSpeed, averageSpeed;
-    private float maxWatts, avgWatts, work;
-    private int exertion;
     private boolean isRace;
     public RideOverview(String name, long id){
         this.name = name;
@@ -52,7 +77,7 @@ public class RideOverview implements Serializable {
         exertion = 0; isRace = false;
     }
     public RideOverview() {
-        distance = climbed = maxSpeed = averageSpeed = maxWatts = avgWatts = work = id = time = totalTime = 0;
+        super();
         name = "";
         date = new Date(0);
         exertion = 0;
@@ -74,10 +99,6 @@ public class RideOverview implements Serializable {
     public void setGearId(String gid) {gearId = gid;}
     public void setActivityType(String type) {activityType = type;}
     public String getName() {return name;}
-    public Date getDate() {return date;}
-    public double getDistance() {return distance;}
-    public int getMovingTime() {return time;}
-    public double getClimbed() {return climbed;}
     public String getGearId() {return gearId;}
     public String getActivityType() {return activityType;}
     public long getId() {return id;}
@@ -86,23 +107,14 @@ public class RideOverview implements Serializable {
     public void setPower(float avgPower) {avgWatts = avgPower;}
     public void setMaxPow(float mx) {maxWatts = mx;}
     public void setKJ(float kilojoules) {work = kilojoules;}
-    public float getAverageSpeed() {return averageSpeed;}
-    public float getMaxSpeed() {return maxSpeed;}
-    public float getPower() {return avgWatts;}
-    public int getTotalTime() {return totalTime;}
     public void setName(String name) {this.name = name;}
-    public float getKJ() {return work;}
     public void setId(long id) {this.id = id;}
     public void setRace(boolean race){
         this.isRace = race;
     }
     public boolean getRace() {return isRace;}
-    public void setExertion(int exertion){
-        this.exertion = exertion;
-    }
-    public int getExertion(){
-        return exertion;
-    }
+    public void setExertion(int exertion){ this.exertion = exertion; }
+
 
     /**
      *
@@ -211,5 +223,101 @@ class Gear implements Serializable {
         model = obj.getString("model_name");
         description = obj.getString("description");
         gearId = obj.getString("id");
+    }
+}
+
+/**
+ * Class to be used to store summations of ride overview data
+ */
+class MasterRideOverview extends RideStats {
+    private HashMap<String, Integer> types;
+    private FunctionalSpinnerItem typeFunc;
+    public MasterRideOverview(){
+        super();
+        count = 0;
+        types = new HashMap<>();
+        typeFunc = FunctionalSpinnerItem.SPIN_FUNC_MODE;
+    }
+    /**
+     * Adds the stats of r to the stats of master (this class)
+     * @param r the overview whose stats will be added to the master overview
+     * amount of overviews added is kept track in the count variable
+     */
+    public MasterRideOverview addRideData(RideOverview r){
+        if(count == 0){
+            date = r.getDate();
+        }
+        ++count;
+        time += r.getMovingTime();
+        totalTime += r.getTotalTime();
+        climbed += r.getClimbed();
+        averageSpeed += r.getAverageSpeed();
+        maxSpeed += r.getMaxSpeed();
+        distance += r.getDistance();
+        avgWatts += r.getPower();
+        work += r.getPower() * r.getMovingTime() / 1000.f;
+        if(types.containsKey(r.getActivityType()))
+            types.put(r.getActivityType(), types.get(r.getActivityType()) + 1);
+        else
+            types.put(r.getActivityType(), 1);
+        return this;
+    }
+    public void setTypeMethod(FunctionalSpinnerItem func){
+        typeFunc = func;
+    }
+
+    @Override
+    public float getPower() {
+        return super.getPower() / count;
+    }
+
+    @Override
+    public float getAverageSpeed() {
+        return super.getAverageSpeed() / count;
+    }
+
+    @Override
+    public String getActivityType() {
+        Set<String> keys = types.keySet();
+        ArrayList<Integer> indices = new ArrayList<>(keys.size());
+        for(String k : keys){
+            indices.add(types.get(k));
+        }
+        if(typeFunc.equals(FunctionalSpinnerItem.SPIN_FUNC_MEAN) || typeFunc.equals(FunctionalSpinnerItem.SPIN_FUNC_MEDIAN)){
+            int start = 0, end = indices.size() - 1;
+            while(start++ < end--);
+            int i = 0;
+            for(String k : keys){
+                if(i++ == start) return k;
+            }
+
+        }
+        else if(typeFunc.equals(FunctionalSpinnerItem.SPIN_FUNC_MIN)){
+            int min = Integer.MAX_VALUE, index = 0;
+            for(int i = 0; i < indices.size(); ++i){
+                if(indices.get(i) < min){
+                    min = indices.get(i);
+                    index = i;
+                }
+            }
+            int i = 0;
+            for(String k : keys){
+                if(i++ == index) return k;
+            }
+        }
+        else{
+            int max = 0, index = 0;
+            for(int i = 0; i < indices.size(); ++i){
+                if(indices.get(i) > max){
+                    max = indices.get(i);
+                    index = i;
+                }
+            }
+            int i = 0;
+            for(String k : keys){
+                if(i++ == index) return k;
+            }
+        }
+        return null;
     }
 }

@@ -39,12 +39,10 @@
             <Spinner
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:entries="@array/function"
                 android:id="@+id/function_spinner" />
             <Spinner
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:entries="@array/stat"
                 android:id="@+id/stat_spinner"/>
             <TextView
                 android:layout_width="wrap_content"
@@ -59,7 +57,6 @@
             <Spinner
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:entries="@array/interval"
                 android:id="@+id/interval_spinner"/>
         </LinearLayout>
         </HorizontalScrollView>

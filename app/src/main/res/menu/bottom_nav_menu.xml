@@ -5,5 +5,6 @@
     <item android:enabled="true" android:title="Recent" android:id="@+id/recentMenuItem"/>
     <item android:enabled="true" android:title="Weeks" android:id="@+id/weekMenuItem"/>
     <item android:enabled="true" android:title="Stats" android:id="@+id/statMenuItem"/>
+    <item android:enabled="true" android:title="Trends" android:id="@+id/graphMenuItem"/>
 
 </menu>
