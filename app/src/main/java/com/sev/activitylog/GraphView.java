@@ -14,9 +14,11 @@ import android.view.View;
 
 import androidx.annotation.Nullable;
 
+import java.io.Serializable;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
+import java.util.HashMap;
 
 public class GraphView extends View implements View.OnTouchListener {
     private Rect drawArea, totalArea;
@@ -27,8 +29,9 @@ public class GraphView extends View implements View.OnTouchListener {
     private float pixelsPerX, pixelsPerY;
     private float startX = 0, startY = 0;
 
-    private ArrayList<ArrayList<Pair<Double, Double>>> data;
+    private ArrayList<ArrayList<Tuple<Double, Double>>> data;
     private ArrayList<Regression> regs;
+    private ArrayList<Double> variableAliases;
 
     private final float dp2px;
     private final int labelSize = 8;
@@ -80,26 +83,33 @@ public class GraphView extends View implements View.OnTouchListener {
     @Override
     protected void onDraw(Canvas canvas) {
         super.onDraw(canvas);
-        initGraph();
         if(style == null) return;
+        initGraph();
         for(int i = 0; i < data.size(); ++i){
+            if(data.get(i).size() == 0) continue;
+            linePaint.setStrokeWidth(style.strokes[i]);
+            linePaint.setColor(style.colors[i]);
+            linePaint.setStrokeCap(Paint.Cap.ROUND);
+            linePaint.setStyle(style.type == GraphStyle.GraphType.TYPE_LINE ? Paint.Style.STROKE : Paint.Style.FILL);
             Path p = new Path();
             int startIndex = getIndexOfStartX(startX, data.get(i));
             float x = (data.get(i).get(startIndex).first.floatValue() - startX) * pixelsPerX * zoomX + drawArea.left;
             float y = drawArea.bottom - (data.get(i).get(startIndex).second.floatValue() - startY) * pixelsPerY * zoomY;
-            p.moveTo(x, y);
+            if(style.type == GraphStyle.GraphType.TYPE_LINE) p.moveTo(x, y);
+            else if(style.type == GraphStyle.GraphType.TYPE_SCATTER) canvas.drawPoint(x, y, linePaint);
             for(int j = startIndex + 1; j < data.get(i).size() && x < drawArea.right; ++j){
                 float x2 = (data.get(i).get(j).first.floatValue() - startX) * pixelsPerX * zoomX + drawArea.left;
                 float y2 = drawArea.bottom - (data.get(i).get(j).second.floatValue() - startY) * pixelsPerY * zoomY;
 //                p.quadTo((x + x2) / 2, (y + y2) / 2, x2, y2);
-                p.lineTo(x2, y2);
+                if(style.type == GraphStyle.GraphType.TYPE_LINE) p.lineTo(x2, y2);
+                else if(style.type == GraphStyle.GraphType.TYPE_SCATTER) canvas.drawCircle(x, y, 5, linePaint);
+                else if(style.type == GraphStyle.GraphType.TYPE_BAR) {
+                    canvas.drawRect(x, y, x2, drawArea.bottom, linePaint);
+                }
                 x = x2;
                 y = y2;
             }
-            linePaint.setStrokeWidth(style.strokes[i]);
-            linePaint.setColor(style.colors[i]);
-            linePaint.setStrokeCap(Paint.Cap.ROUND);
-            canvas.drawPath(p, linePaint);
+            if(style.type == GraphStyle.GraphType.TYPE_LINE) canvas.drawPath(p, linePaint);
 
             if(style.showTrend){
                 Regression r = regs.get(i);
@@ -124,17 +134,17 @@ public class GraphView extends View implements View.OnTouchListener {
         linePaint.setStrokeWidth(1);
         do{
             float val = (x - drawArea.left) / (pixelsPerX * zoomX) + startX;
-            canvas.drawText(formatX(val), x, drawArea.bottom, textPaint);
+            canvas.drawText(format(val, style.xFormat), x, drawArea.bottom, textPaint);
             if((style.flags & GraphStyle.VERT_GRID) > 0){
                 canvas.drawLine(x, drawArea.bottom, x, drawArea.top, linePaint);
             }
-            x += textPaint.measureText(formatX(val)) + 3 * dp2px;
+            x += textPaint.measureText(format(val, style.xFormat)) + 3 * dp2px;
         } while(x < drawArea.right);
         int y = drawArea.bottom;
         float textHeight = getTextHeight(textPaint);
         do{
             float val = (drawArea.bottom - y) / (pixelsPerY * zoomY) + startY;
-            canvas.drawText(String.format("%.1f", val), totalArea.left, y, textPaint);
+            canvas.drawText(format(val, style.yFormat), totalArea.left, y, textPaint);
             if((style.flags & GraphStyle.HORZ_GRID) > 0)
                 canvas.drawLine(drawArea.left, y, drawArea.right, y, linePaint);
             y -= textHeight - 3 * dp2px;
@@ -145,7 +155,7 @@ public class GraphView extends View implements View.OnTouchListener {
 
 
     }
-    private int getIndexOfStartX(double startX, ArrayList<Pair<Double, Double>> data){
+    private int getIndexOfStartX(double startX, ArrayList<Tuple<Double, Double>> data){
         int index, start = 0, end = data.size() - 1;
         do{
             index = (int)Math.round((end - start) / (data.get(end).first - data.get(start).first) * (startX - data.get(start).first) + start);
@@ -184,12 +194,15 @@ public class GraphView extends View implements View.OnTouchListener {
     public void setStyle(GraphStyle style){
         this.style = style;
     }
-    public void setData(ArrayList<Pair<Double, Double>> dataPoints, int lineNum){
+    public void setData(ArrayList<Tuple<Double, Double>> dataPoints, int lineNum){
         if(lineNum < data.size())
             data.set(lineNum, sort(dataPoints, 0, dataPoints.size() - 1));
         else
             data.add(lineNum, sort(dataPoints, 0, dataPoints.size() - 1));
         graphDirty = true;
+    }
+    public void clearData() {
+        data = new ArrayList<>();
     }
     private float getTextHeight(Paint p){
         final Paint.FontMetrics fm = p.getFontMetrics();
@@ -200,16 +213,117 @@ public class GraphView extends View implements View.OnTouchListener {
         if(graphDirty){
             graphDirty = false;
 
+            if(style.xFormat.equals(FunctionalSpinnerItem.SPIN_STAT_ACTIVITIES)){
+                ArrayList<ArrayList<Tuple<Double, Double>>> collapsedData = new ArrayList<>();
+                for(ArrayList<Tuple<Double, Double>> list : data){
+                    ArrayList<Tuple<Double, Double>> buffer = new ArrayList<>();
+                    if(list.size() == 0) continue;
+                    double lastY = list.get(0).second;
+                    int lastCount = list.get(0).first.intValue();
+                    for(int i = 1; i < list.size(); ++i){
+                        if(Math.abs(list.get(i).second - lastY) <= 1){
+                            lastCount += list.get(i).first.intValue();
+                        }
+                        else {
+                            buffer.add(new Tuple<Double, Double>((double) lastCount, lastY));
+                            lastCount = list.get(i).first.intValue();
+                            lastY = list.get(i).second;
+                        }
+                    }
+                    collapsedData.add(buffer);
+                }
+                data = collapsedData;
+            }
+            else if(style.xFormat.equals(FunctionalSpinnerItem.SPIN_STAT_ACTIVITY_TYPE)){
+                HashMap<Double, Integer> activityAliases = new HashMap<>();
+                int count = 0;
+                ArrayList<ArrayList<Tuple<Double, Double>>> aliasedData = new ArrayList<>();
+                ArrayList<Double> aliases = new ArrayList<>();
+                for(ArrayList<Tuple<Double, Double>> list : data){
+                    ArrayList<Tuple<Double, Double>> buffer = new ArrayList<>();
+                    for(Tuple<Double, Double> p : list){
+                        if(activityAliases.containsKey(p.first))
+                            buffer.add(new Tuple<Double, Double>((double)activityAliases.get(p.first), p.second));
+                        else{
+                            activityAliases.put(p.first, count++);
+                            buffer.add(new Tuple<>((double)count - 1, p.second));
+                            aliases.add(p.first);
+                        }
+                    }
+                    aliasedData.add(buffer);
+                }
+                data = aliasedData;
+                variableAliases = aliases;
+            }
+            else if(style.xFormat.equals(FunctionalSpinnerItem.SPIN_STAT_ACTIVITY_INDEX)){
+                for(int i = 0; i < data.size(); ++i){
+                    for(int j = 0; j < data.get(i).size(); ++j) {
+                        Tuple<Double, Double> p = data.get(i).get(j);
+                        data.get(i).set(j, new Tuple<>((double)j, p.second));
+                    }
+                }
+            }
+            if(style.yFormat.equals(FunctionalSpinnerItem.SPIN_STAT_ACTIVITIES)){
+                ArrayList<ArrayList<Tuple<Double, Double>>> collapsedData = new ArrayList<>();
+                for(ArrayList<Tuple<Double, Double>> list : data){
+                    ArrayList<Tuple<Double, Double>> buffer = new ArrayList<>();
+                    if(list.size() == 0) continue;
+                    double lastX = list.get(0).first;
+                    int lastCount = list.get(0).second.intValue();
+                    for(int i = 1; i < list.size(); ++i){
+                        if(Math.abs(list.get(i).first - lastX) < 1){
+                            lastCount += list.get(i).second.intValue();
+                        }
+                        else {
+                            buffer.add(new Tuple<Double, Double>(lastX, (double)lastCount));
+                            lastCount = list.get(i).second.intValue();
+                            lastX = list.get(i).first;
+                        }
+                    }
+                    collapsedData.add(buffer);
+                }
+                data = collapsedData;
+            }
+            else if(style.yFormat.equals(FunctionalSpinnerItem.SPIN_STAT_ACTIVITY_TYPE)){
+                HashMap<Double, Integer> activityAliases = new HashMap<>();
+                int count = 0;
+                ArrayList<ArrayList<Tuple<Double, Double>>> aliasedData = new ArrayList<>();
+                ArrayList<Double> aliases = new ArrayList<>();
+                for(ArrayList<Tuple<Double, Double>> list : data){
+                    ArrayList<Tuple<Double, Double>> buffer = new ArrayList<>();
+                    for(Tuple<Double, Double> p : list){
+                        if(activityAliases.containsKey(p.second))
+                            buffer.add(new Tuple<Double, Double>(p.first, activityAliases.get(p.second).doubleValue()));
+                        else{
+                            activityAliases.put(p.first, count++);
+                            buffer.add(new Tuple<>(p.first, count - 1.0));
+                            aliases.add(p.second);
+                        }
+                    }
+                    aliasedData.add(buffer);
+                }
+                data = aliasedData;
+                variableAliases = aliases;
+            }
+            else if(style.yFormat.equals(FunctionalSpinnerItem.SPIN_STAT_ACTIVITY_INDEX)){
+                for(int i = 0; i < data.size(); ++i){
+                    for(int j = 0; j < data.get(i).size(); ++j) {
+                        Tuple<Double, Double> p = data.get(i).get(j);
+                        data.get(i).set(j, new Tuple<>(p.first, (double)j));
+                    }
+                }
+            }
+
             int maxSize = 0;
-            ArrayList<Pair<Double, Double>> biggest = null;
-            float mnx = System.currentTimeMillis(), mmx = Integer.MIN_VALUE, mmy = Integer.MIN_VALUE, mny = Integer.MAX_VALUE;
-            for(ArrayList<Pair<Double, Double>> l : data) {
+            ArrayList<Tuple<Double, Double>> biggest = null;
+            float mnx = System.currentTimeMillis(), mmx = -System.currentTimeMillis(), mmy = -System.currentTimeMillis(), mny = System.currentTimeMillis();
+            for(ArrayList<Tuple<Double, Double>> l : data) {
                 if (l.size() > maxSize) {
                     maxSize = l.size();
                     biggest = l;
                 }
                 if(scale == null) {
-                    for (Pair<Double, Double> p : l) {
+                    for (Tuple<Double, Double> p : l) {
                         if (p.first < mnx) mnx = p.first.floatValue();
                         if (p.first > mmx) mmx = p.first.floatValue();
                         if (p.second < mny) mny = p.second.floatValue();
@@ -221,30 +335,31 @@ public class GraphView extends View implements View.OnTouchListener {
             pixelsPerX = (drawArea.right - drawArea.left) / (scale.maxX - scale.minX);
             pixelsPerY = (drawArea.bottom - drawArea.top) / (scale.maxY - scale.minY);
 
-            if(biggest != null && biggest.size() > 30){
+            if(biggest != null && biggest.size() > 30 && biggest.get(biggest.size() - 1).first > biggest.get(biggest.size() - 31).first){
                 initialZoomX = zoomX = (drawArea.right - drawArea.left) / (float)(biggest.get(biggest.size() - 1).first - biggest.get(biggest.size() - 31).first) / pixelsPerX;
 //                zoomY = (drawArea.right - drawArea.left) / (float)(biggest.get(biggest.size() - 1).second - biggest.get(biggest.size() - 31).second) / pixelsPerY;
                 startX = biggest.get(biggest.size() - 31).first.floatValue();
+            }else {
+                startX = scale.minX;
+                initialZoomX = zoomX = (drawArea.right - drawArea.left) / (float)(scale.maxX - scale.minX) / pixelsPerX;
             }
             startY = scale.minY;
 //            startX = scale.minX;
 
             regs = new ArrayList<>(data.size());
-            for(ArrayList<Pair<Double, Double>> points : data)
+            for(ArrayList<Tuple<Double, Double>> points : data)
                 regs.add(Regression.linearRegression(points));
         }
     }
-    private String formatX(float val){
-        if((style.flags & GraphStyle.STRING_AS_X) > 0)
-            return Util.fromBase26((long)val);
-        switch(style.type){
-            case TYPE_TIME_LINE:
-                return TimeSpan.fromSeconds((long)val);
-            case TYPE_DATE_LINE:
-                return new SimpleDateFormat("MM/dd/yy").format(new Date((long)val));
-            default:
-                return String.format("%.2f", val);
-        }
+    private String format(float val, FunctionalSpinnerItem dataType){
+        if(dataType.equals(FunctionalSpinnerItem.SPIN_STAT_ACTIVITY_TYPE))
+            return variableAliases == null ? Util.fromBase26((long)val) : ((int)val < variableAliases.size() ? Util.fromBase26(variableAliases.get((int)val).longValue()) : "");
+        else if(dataType.equals(FunctionalSpinnerItem.SPIN_STAT_TL_TIME) || dataType.equals(FunctionalSpinnerItem.SPIN_STAT_MV_TIME))
+            return TimeSpan.fromSeconds((long)val);
+        else if(dataType.equals(FunctionalSpinnerItem.SPIN_STAT_ACTIVITY_DATE))
+            return new SimpleDateFormat("MM/dd/yy").format(new Date((long)val));
+        else
+            return String.format("%.1f", val);
     }
 
     @Override
@@ -268,7 +383,7 @@ public class GraphView extends View implements View.OnTouchListener {
                                 (float)Math.sqrt(Math.pow(lastTouch[0] - lastTouch[2], 2) + Math.pow(lastTouch[1] - lastTouch[3], 2));
                         zoomX += dd * 0.005;
                         if(zoomX <= 1) zoomX = 1;
-                        if(zoomX >= initialZoomX * 3) zoomX = initialZoomX * 3;
+                        if(zoomX >= initialZoomX * 20) zoomX = initialZoomX * 20;
 //                        zoomY += dy * 0.005;
                     }
                     lastTouch[2] = motionEvent.getX(1);
@@ -302,18 +417,18 @@ public class GraphView extends View implements View.OnTouchListener {
         return true;
     }
 
-    private ArrayList<Pair<Double, Double>> sort(ArrayList<Pair<Double, Double>> list, int start, int end){
+    private ArrayList<Tuple<Double, Double>> sort(ArrayList<Tuple<Double, Double>> list, int start, int end){
 
         if(start < end){
             return merge(sort(list, start, (start + end) / 2), sort(list, (start + end) / 2 + 1, end));
         }
         assert(start == end);
-        ArrayList<Pair<Double, Double>> out = new ArrayList<>();
-        out.add(new Pair<Double, Double>(list.get(start).first, list.get(start).second));
+        ArrayList<Tuple<Double, Double>> out = new ArrayList<>();
+        out.add(new Tuple<Double, Double>(list.get(start).first, list.get(start).second));
         return out;
     }
-    private ArrayList<Pair<Double, Double>> merge(ArrayList<Pair<Double, Double>> a, ArrayList<Pair<Double, Double>> b){
-        ArrayList<Pair<Double, Double>> output = new ArrayList<>();
+    private ArrayList<Tuple<Double, Double>> merge(ArrayList<Tuple<Double, Double>> a, ArrayList<Tuple<Double, Double>> b){
+        ArrayList<Tuple<Double, Double>> output = new ArrayList<>();
         int i = 0, j = 0;
         while(i < a.size() && j < b.size()){
             if(a.get(i).first < b.get(j).first){
@@ -331,26 +446,24 @@ public class GraphView extends View implements View.OnTouchListener {
         return output;
     }
 }
-class GraphStyle {
+class GraphStyle implements Serializable {
     enum GraphType {
         TYPE_LINE,
-        TYPE_DATE_LINE,
-        TYPE_TIME_LINE,
-        TYPE_BAR
+        TYPE_BAR,
+        TYPE_SCATTER
     }
     public GraphType type;
     public int[] colors;
     public int[] strokes;
     public String xAxis, yAxis, title;
-    public String[] xNames;
     public boolean showTrend;
     public int trendColor, trendStroke;
+    public FunctionalSpinnerItem xFormat, yFormat;
 
     public int flags; //allows for the style to be more easily extended without further overhead. I'll be honest, this is being sort of lazy
     public static final int VERT_GRID = 1;
     public static final int HORZ_GRID = 2;
-    public static final int STRING_AS_X = 4;
-    public static final int MATCH_REG_TO_LINE = 8;
+    public static final int MATCH_REG_TO_LINE = 4;
     public GraphStyle() {
         type = GraphType.TYPE_LINE;
         colors = new int[] {Color.RED};
@@ -359,6 +472,8 @@ class GraphStyle {
         showTrend = false;
         trendColor = Color.YELLOW;
         trendStroke = 1;
+        xFormat = FunctionalSpinnerItem.SPIN_STAT_ACTIVITY_DATE;
+        yFormat = FunctionalSpinnerItem.SPIN_STAT_AVG_SPEED;
     }
     public GraphStyle clone(){
         GraphStyle c = new GraphStyle();
@@ -377,12 +492,6 @@ class GraphStyle {
         c.trendStroke = trendStroke;
         c.trendColor = trendColor;
         c.showTrend = showTrend;
-        if(xNames != null) {
-            c.xNames = new String[xNames.length];
-            for (int i = 0; i < xNames.length; ++i) {
-                c.xNames[i] = "" + xNames[i];
-            }
-        }
         c.flags = flags;
         return c;
 
@@ -446,10 +555,6 @@ class GraphStyleBuilder {
         style.yAxis = yAxis;
         return this;
     }
-    public GraphStyleBuilder xAlias(String[] aliases){
-        style.xNames = aliases;
-        return this;
-    }
     public GraphStyleBuilder title(String title){
         style.title = title;
         return this;
@@ -487,6 +592,11 @@ class GraphStyleBuilder {
         style.flags &= ~flag;
         return this;
     }
+    public GraphStyleBuilder format(FunctionalSpinnerItem x, FunctionalSpinnerItem y){
+        if(x != null) style.xFormat = x;
+        if(y != null) style.yFormat = y;
+        return this;
+    }
 }
 class GraphScale {
     public float maxX, minX, maxY, minY;
@@ -503,9 +613,9 @@ class Regression {
         m = slope;
         b = yIntercept;
     }
-    public static Regression linearRegression(ArrayList<Pair<Double, Double>> points){
+    public static Regression linearRegression(ArrayList<Tuple<Double, Double>> points){
         float x = 0, y = 0, xy = 0, xx = 0;
-        for(Pair<Double, Double> p : points){
+        for(Tuple<Double, Double> p : points){
             x += p.first.floatValue();
             y += p.second.floatValue();
             xy += p.first.floatValue() * p.second.floatValue();

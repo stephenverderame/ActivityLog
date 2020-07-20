@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="settings_logout">Log Out</string>
+    <string name="settings_login">Log In</string>
+    <string name="settings_measurement_label">Measurement System:</string>
+    <string name="settings_delete">Delete Cache</string>
+    <string name="settings_logout_title">Log Out?</string>
+    <string name="settings_logout_warning">You will need to sign in again with your username and password in order to sync data again. Continue?</string>
+    <string name="ok">Ok</string>
+    <string name="yes">Yes</string>
+    <string name="cancel">Cancel</string>
+    <string name="settings_delete_title">Delete Saved Data?</string>
+    <string name="setting_delete_msg">Data is cached to make the app more responsive, reduce your data usage and avoid hitting query limits on databases. Please only do this if you are experiencing problems with the app. Are you sure you want to delete saved data?</string>
+
+    <string name="login_title">Connect to Strava?</string>
+    <string name="login_msg">Connect to strava to sync your activities and data to the app!</string>
+
+    <string name="sync_title">Sync?</string>
+    <string name="sync_msg">Do you want to sync new data from strava? Please avoid doing this in order to avoid remote query limits.</string>
+
+    <string name="filter_confirmation">Data Filtered! Press "Graph" to view updates</string>
+    <string name="logout_confirmation">You have successfully logged out</string>
+    <string name="delete_confirmation">All local data has been erased</string>
+    <string name="gl_instructions">Use one finger to pan. Place one finger in the bottom left of the screen and use the other finger to rotate. Pinch with two fingers to zoom</string>
+    <string name="got_it">Don\'t show again</string>
+</resources>

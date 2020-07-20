@@ -196,6 +196,11 @@ public class StorageModel extends RideModel {
             }
         }
     }
+    public static void deleteCache(Context ctx){
+        synchronized (CACHE_FILE) { ctx.deleteFile(CACHE_FILE); }
+        synchronized (GEAR_FILE) { ctx.deleteFile(GEAR_FILE); }
+        synchronized (DATA_FILE) { ctx.deleteFile(DATA_FILE); }
+    }
 
     @Override
     public void attach(Observer observer) {

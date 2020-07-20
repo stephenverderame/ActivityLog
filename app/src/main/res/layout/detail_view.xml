@@ -70,6 +70,19 @@
         android:textSize="20dp"
         android:id="@+id/viewGLBtn"
         android:background="@drawable/round_rect_shadow" />
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:background="@drawable/round_rect_shadow">
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+            android:textSize="24dp" android:textColor="@color/colorPrimary" android:text="Matched Activities"
+            android:layout_gravity="center_horizontal"/>
+        <fragment android:name="com.sev.activitylog.TrendsFragment"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:id="@+id/matchedRidesFragment"/>
+    </LinearLayout>
 
 </LinearLayout>
 </ScrollView>

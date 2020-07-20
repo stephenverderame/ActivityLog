@@ -60,6 +60,8 @@
 
     <string name="stat_speed">Average Speed</string>
     <string name="stat_activities">Activities</string>
+    <string name="stat_activity_date">Activity Date</string>
+    <string name="stat_index">Activity Index</string>
     <string name="stat_activity_type">Activity Type</string>
     <string name="stat_calories">Calories</string>
     <string name="stat_dist">Distance</string>
@@ -79,5 +81,11 @@
     <string-array name="graphType">
         <item>Line</item>
         <item>Bar</item>
+        <item>Scatter</item>
+    </string-array>
+
+    <string-array name="settings_systems">
+        <item>Imperial</item>
+        <item>Metric</item>
     </string-array>
 </resources>

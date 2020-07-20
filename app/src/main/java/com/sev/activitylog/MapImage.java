@@ -7,6 +7,10 @@ import android.graphics.Paint;
 import android.graphics.Rect;
 import android.util.Log;
 
+import org.json.JSONArray;
+import org.json.JSONException;
+import org.json.JSONObject;
+
 import java.io.BufferedReader;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -18,8 +22,11 @@ import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.LinkedList;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 
 import javax.net.ssl.HttpsURLConnection;
 class SerializeableBitmap implements Serializable {
@@ -123,6 +130,148 @@ class RouteDecorator extends MapDecorator {
         this.route = route;
     }
 }
+/*
+class TrailDecorator extends MapDecorator {
+    public class Trail {
+        public String name;
+        public ArrayList<Pos> points;
+        public int difficulty;
+        public int ID;
+        public Trail() {
+            points = new ArrayList<Pos>();
+        }
+        public Trail(JSONObject obj) throws JSONException {
+            name = obj.getString("title");
+            difficulty = obj.getInt("difficulty");
+            ID = obj.getInt("trailid");
+            points = Pos.decodePolyline(obj.getString("encodedPath"), 5);
+        }
+    }
+
+
+    private final String API_KEY = "docs";
+    private Future<ArrayList<Trail>> trails;
+    private ArrayList<Trail> loadedTrails;
+    private RouteDecorator internalDecorator;
+    private Observer observer;
+    public TrailDecorator(Observer controller) {
+        internalDecorator = new RouteDecorator();
+        observer = controller;
+    }
+    @Override
+    public void draw(Canvas canvas, Rect destination, Paint paint) {
+        if(loadedTrails == null && trails.isDone()) {
+            try {
+                loadedTrails = trails.get();
+            } catch (ExecutionException e) {
+                e.printStackTrace();
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+        }
+        if(loadedTrails != null){
+            int old = paint.getColor();
+            float oldFSize = paint.getTextSize();
+            paint.setTextSize(8);
+            for(Trail t : loadedTrails){
+                double lonPerX = Math.abs((double)(mapBounds.right - mapBounds.left) / (destination.right - destination.left));
+                double latPerY = Math.abs((double)(mapBounds.bottom - mapBounds.top) / (destination.bottom - destination.top));
+                internalDecorator.setRoute(t.points);
+                paint.setColor(colorFromDifficulty(t.difficulty));
+                internalDecorator.draw(canvas, destination, paint);
+                if(t.points.size() > 0)
+                    canvas.drawText(t.name, destination.left + (float)(Math.abs(t.points.get(0).lon - mapBounds.left)) / (float)lonPerX,
+                            destination.top + (float)(Math.abs(mapBounds.top - t.points.get(0).lat)) / (float)latPerY, paint);
+            }
+            paint.setColor(old);
+            paint.setTextSize(oldFSize);
+        }
+        component.draw(canvas, destination, paint);
+    }
+    private int colorFromDifficulty(int difficulty){
+        final int a = 0xFF;
+        switch(difficulty){
+            case 2:
+                return Util.rgba_v(0xFF, 0xFF, 0xFF, a);
+            case 3:
+                return Util.rgba_v(0x45, 0xB4, 0x14, a);
+            case 4:
+            case 10:
+                return Util.rgba_v(0, 0, 0, a);
+            case 5:
+                return Util.rgba_v(0xBE, 0, 0x14, a);
+            case 6:
+                return Util.rgba_v(0xAE, 0x83, 0xAE, a);
+            case 7:
+                return Util.rgba_v(0xFF, 0x85, 0, a);
+            case 8:
+            case 9:
+                return Util.rgba_v(0xDC, 0x13, 0x13, a);
+            default:
+                return Util.rgba_v(0x85, 0x4e, 0x85, a);
+        }
+    }
+
+    @Override
+    void decorate(Map layer) {
+        super.decorate(layer);
+        internalDecorator.decorate(layer);
+        trails = Executors.newSingleThreadExecutor().submit(new Callable<ArrayList<Trail>>() {
+            @Override
+            public ArrayList<Trail> call() {
+                ArrayList<Trail> trails = new ArrayList<>();
+                StringBuilder request = new StringBuilder();
+                request.append("https://www.trailforks.com/api/1/maptrails?output=encoded&api_key=").append(API_KEY).append("&filter=bbox%3A%3A").append(mapBounds.top).append(',')
+                        .append(mapBounds.left).append(',').append(mapBounds.bottom).append(',').append(mapBounds.right);
+                try {
+                    URL url = new URL(request.toString());
+                    HttpsURLConnection con = (HttpsURLConnection)url.openConnection();
+                    con.setDoInput(true);
+                    con.setDoOutput(false);
+                    con.setRequestMethod("GET");
+                    con.setRequestProperty("Accept", "application/json");
+                    con.setRequestProperty("Host", "www.trailforks.com");
+                    con.connect();
+                    if(con.getResponseCode() == 200){
+                        try(BufferedReader reader = new BufferedReader(new InputStreamReader(con.getInputStream()))){
+                            StringBuilder j = new StringBuilder();
+                            String line;
+                            while((line = reader.readLine()) != null)
+                                j.append(line);
+                            JSONObject resp = new JSONObject(j.toString());
+                            JSONArray data = resp.getJSONArray("data");
+                            for(int i = 0; i < data.length(); ++i)
+                                trails.add(new Trail(data.getJSONObject(i)));
+                        } catch (JSONException e) {
+                            e.printStackTrace();
+                        }
+                    }
+                } catch (MalformedURLException e) {
+                    e.printStackTrace();
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+                ObserverHelper.sendTo(observer, new ObserverEventArgs(ObserverNotifications.REDRAW_NOTIFY));
+                return trails;
+            }
+        });
+    }
+    public static boolean isOffroad(MapImage map){
+        Bitmap bmp = map.img.getBitmap();
+        int red = 0, green = 0, blue = 0;
+        for(int x = 0; x < bmp.getWidth(); ++x){
+            for(int y = 0; y < bmp.getHeight(); ++y){
+                int color = bmp.getPixel(x, y);
+                red += color & 0xFF0000;
+                green += color & 0xFF00;
+                blue += color & 0xFF;
+            }
+        }
+        green /= bmp.getWidth() * bmp.getHeight();
+        return green > 190;
+    }
+}
+*/
 abstract class MapFactory implements Subject{
     protected LinkedList<Observer> observers;
     private ExecutorService executor;

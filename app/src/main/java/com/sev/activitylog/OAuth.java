@@ -193,6 +193,7 @@ public class OAuth implements Subject, Runnable {
             authenticating.set(true);
             boolean success = authenticateStep1() && authenticateStep2();
             authenticating.set(false);
+            token.save();
             ObserverHelper.sendToObservers(observers, new ObserverEventArgs(ObserverNotifications.OAUTH_NOTIFY, OAuth.this, success));
         }
     }
@@ -258,6 +259,7 @@ Parcelable interface is desgined to send objects from one activity to another
  */
 class AuthToken implements Parcelable{
     public static final String ACCESS_TOKEN_ID = "access_token", REFRESH_TOKEN_ID = "refresh_token", EXPIRATION_ID = "token_expiration";
+    public static final String PREFERENCES_ID = "auth_token";
     private String accessToken, refreshToken;
     private long expiration; //seconds since epoch when token will expire
     private SharedPreferences prefs;
@@ -267,6 +269,16 @@ class AuthToken implements Parcelable{
         accessToken = prefs.getString(ACCESS_TOKEN_ID, null);
         refreshToken = prefs.getString(REFRESH_TOKEN_ID, null);
         expiration = prefs.getLong(EXPIRATION_ID, 0);
+    }
+
+    public static void clear(SharedPreferences prefs){
+        if(prefs != null) {
+            SharedPreferences.Editor edit = prefs.edit();
+            edit.putString(ACCESS_TOKEN_ID, null);
+            edit.putString(REFRESH_TOKEN_ID, null);
+            edit.putLong(EXPIRATION_ID, 0);
+            edit.commit();
+        }
     }
 
     public synchronized String getAccessToken() {return accessToken;}

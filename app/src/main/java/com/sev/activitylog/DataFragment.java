@@ -26,6 +26,7 @@ public abstract class DataFragment extends Fragment {
         this.data = data;
         notifyDataChanged();
     }
+    //Saves current state internally to be internally reloaded by the same instance
     public abstract void cacheState();
 
     protected LinkedList<RideOverview> commonFilter(SearchFilters filter){

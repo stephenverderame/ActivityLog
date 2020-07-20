@@ -5,4 +5,8 @@
         android:title="Sync"
         android:icon="@drawable/download"
         app:showAsAction="always" />
+    <item android:id="@+id/settings_btn"
+        android:title="Settings"
+        android:icon="@drawable/settings_icon"
+        app:showAsAction="always"/>
 </menu>

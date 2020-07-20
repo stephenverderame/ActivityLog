@@ -88,7 +88,7 @@ public class Pos implements Serializable {
         do{
             int chunk = (val >> shift);
             shift += 5;
-            moreChunks = chunk > 0x20;
+            moreChunks = chunk >= 0x20;
             chunk &= 0b11111;
             if(moreChunks){
                 chunk |= 0x20;
@@ -107,7 +107,7 @@ public class Pos implements Serializable {
      * @param btmRight
      * @return Future to 2D array of Positions in row major order ([y][x])
      */
-    public static Future<Pos[][]> getHeightMap(double resolutionX, double resolutionY, Pos topLeft, Pos btmRight){
+    public static Future<Pos[][]> getHeightMap(double resolutionX, double resolutionY, Pos topLeft, Pos btmRight, Observer listener){
         ExecutorService executor = Executors.newSingleThreadExecutor();
         return executor.submit(() -> {
             int width = (int)Math.round(Math.abs(btmRight.lon - topLeft.lon) * resolutionX);
@@ -116,7 +116,7 @@ public class Pos implements Serializable {
             ArrayList<Pos> positions = new ArrayList<Pos>();
             for(int i = 0; i < height; ++i){
                 for(int j = 0; j < width; ++j){
-                    Pos p = new Pos(btmRight.lat + i / (double)resolutionY, topLeft.lon + j / (double)resolutionX);
+                    Pos p = new Pos(btmRight.lat + (double)i / height * (topLeft.lat - btmRight.lat), topLeft.lon + (double)j / width * (btmRight.lon - topLeft.lon));
                     heightMap[i][j] = p;
                     positions.add(p);
                 }
@@ -150,7 +150,7 @@ public class Pos implements Serializable {
                                     JSONObject jsonPos = locations.getJSONObject(i);
                                     JSONObject location = jsonPos.getJSONObject("location");
                                     heightMap[(int) Math.round(Math.abs(location.getDouble("lat") - btmRight.lat) * resolutionY)]
-                                            [(int) Math.round(Math.abs(location.getDouble("lng") - topLeft.lon) * resolutionX)].elevation = jsonPos.getDouble("elevation") * RideOverview.METERS_MILES_CONVERSION / 5; //puts elevation onto a similar scale as lat + lon
+                                            [(int) Math.round(Math.abs(location.getDouble("lng") - topLeft.lon) * resolutionX)].elevation = jsonPos.getDouble("elevation") * Settings.metersDistanceConversion() / 5; //puts elevation onto a similar scale as lat + lon
                                 }
                             }else{
                                 Log.e("Height Fetch", "Error getting data " + obj.getString("status"));
@@ -168,6 +168,7 @@ public class Pos implements Serializable {
                     Log.e("Height Fetch", e.toString());
                 }
             } while(end < positions.size());
+            ObserverHelper.sendTo(listener, new ObserverEventArgs(ObserverNotifications.REDRAW_NOTIFY));
             return heightMap;
         });
 

@@ -10,7 +10,9 @@ import android.widget.TextView;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
-public class FunctionalSpinnerItem {
+import java.io.Serializable;
+
+public class FunctionalSpinnerItem implements Serializable {
     private final SpinnerItemType type;
     private final int ID;
     private FunctionalSpinnerItem(SpinnerItemType type, int ID){
@@ -37,6 +39,8 @@ public class FunctionalSpinnerItem {
     public static final FunctionalSpinnerItem SPIN_INTERVAL_NONE = new FunctionalSpinnerItem(SpinnerItemType.SPINNER_TYPE_INTERVAL, R.string.int_none);
 
     public static final FunctionalSpinnerItem SPIN_STAT_ACTIVITIES = new FunctionalSpinnerItem(SpinnerItemType.SPINNER_TYPE_STAT, R.string.stat_activities);
+    public static final FunctionalSpinnerItem SPIN_STAT_ACTIVITY_DATE = new FunctionalSpinnerItem(SpinnerItemType.SPINNER_TYPE_STAT, R.string.stat_activity_date);
+    public static final FunctionalSpinnerItem SPIN_STAT_ACTIVITY_INDEX = new FunctionalSpinnerItem(SpinnerItemType.SPINNER_TYPE_STAT, R.string.stat_index);
     public static final FunctionalSpinnerItem SPIN_STAT_ACTIVITY_TYPE = new FunctionalSpinnerItem(SpinnerItemType.SPINNER_TYPE_STAT, R.string.stat_activity_type);
     public static final FunctionalSpinnerItem SPIN_STAT_AVG_SPEED = new FunctionalSpinnerItem(SpinnerItemType.SPINNER_TYPE_STAT, R.string.stat_speed);
     public static final FunctionalSpinnerItem SPIN_STAT_CALORIES = new FunctionalSpinnerItem(SpinnerItemType.SPINNER_TYPE_STAT, R.string.stat_calories);
@@ -55,7 +59,7 @@ public class FunctionalSpinnerItem {
     public static final FunctionalSpinnerItem SPIN_FUNC_SUM = new FunctionalSpinnerItem(SpinnerItemType.SPINNER_TYPE_FUNCTION, R.string.func_sum);
 
     public static final FunctionalSpinnerItem[] SPIN_FUNC_LIST = new FunctionalSpinnerItem[] {SPIN_FUNC_MAX, SPIN_FUNC_MEAN, SPIN_FUNC_MEDIAN, SPIN_FUNC_MIN, SPIN_FUNC_MODE, SPIN_FUNC_SUM};
-    public static final FunctionalSpinnerItem[] SPIN_STAT_LIST = new FunctionalSpinnerItem[] {SPIN_STAT_ACTIVITIES, SPIN_STAT_ACTIVITY_TYPE, SPIN_STAT_AVG_SPEED, SPIN_STAT_CALORIES, SPIN_STAT_DISTANCE,
+    public static final FunctionalSpinnerItem[] SPIN_STAT_LIST = new FunctionalSpinnerItem[] {SPIN_STAT_ACTIVITIES, SPIN_STAT_ACTIVITY_DATE, SPIN_STAT_ACTIVITY_INDEX, SPIN_STAT_ACTIVITY_TYPE, SPIN_STAT_AVG_SPEED, SPIN_STAT_CALORIES, SPIN_STAT_DISTANCE,
                                                                                                 SPIN_STAT_ELEVATION, SPIN_STAT_MV_TIME, SPIN_STAT_MX_SPEED, SPIN_STAT_POWER, SPIN_STAT_TL_TIME};
     public static final FunctionalSpinnerItem[] SPIN_INT_LIST = new FunctionalSpinnerItem[] {SPIN_INTERVAL_ACTIVITY, SPIN_INTERVAL_DAY, SPIN_INTERVAL_WEEK, SPIN_INTERVAL_MONTH, SPIN_INTERVAL_YEAR, SPIN_INTERVAL_NONE};
 }

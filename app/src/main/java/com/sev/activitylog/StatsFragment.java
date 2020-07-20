@@ -51,13 +51,13 @@ public class StatsFragment extends DataFragment implements View.OnClickListener 
                 master.addRideData(r);
             }
         }
-        setText(R.id.stats_distance, String.format("Distance: %.2f miles", master.getDistance() * RideOverview.METERS_MILES_CONVERSION));
+        setText(R.id.stats_distance, String.format("Distance: %.2f %s", master.getDistance() * Settings.metersDistanceConversion(), Settings.distanceUnits()));
         setText(R.id.stats_activities, "Activities: " + Integer.toString(count));
-        setText(R.id.stats_avg_distance, String.format("Avg Distance: %.2f miles", master.getDistance() * RideOverview.METERS_MILES_CONVERSION / count));
+        setText(R.id.stats_avg_distance, String.format("Avg Distance: %.2f %s", master.getDistance() * Settings.metersDistanceConversion() / count, Settings.distanceUnits()));
         setText(R.id.stats_mtime, "Moving Time: " + TimeSpan.fromSeconds(master.getMovingTime()));
         setText(R.id.stats_ttime, "Total Time: " + TimeSpan.fromSeconds(master.getTotalTime()));
-        setText(R.id.stats_elevation, String.format("Elevation: %.2f ft", master.getClimbed() * RideOverview.METERS_FEET_CONVERSION));
-        setText(R.id.stats_speed, String.format("Avg Speed: %.2f mph", master.getAverageSpeed() * RideOverview.METERS_MILES_CONVERSION * 3600));
+        setText(R.id.stats_elevation, String.format("Elevation: %.2f %s", master.getClimbed() * Settings.metersElevationConversion(), Settings.elevationUnits()));
+        setText(R.id.stats_speed, String.format("Avg Speed: %.2f %s", master.getAverageSpeed() * Settings.metersDistanceConversion() * 3600, Settings.speedUnits()));
         setText(R.id.stats_power, String.format("Avg Power: %.2f W", master.getPower()));
         setText(R.id.stats_calories, String.format("Calories: %.2f kCal", master.getPower() * master.getMovingTime() / 4.184 / 1000 * 4)); //25% efficient at converting cal to work (hence the * 4)
         setText(R.id.stats_avg_time, TimeSpan.fromSeconds(master.getMovingTime() / count));

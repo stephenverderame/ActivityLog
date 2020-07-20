@@ -34,7 +34,8 @@ enum ObserverNotifications {
     RIDES_LOAD_PARTIAL_NOTIFY, //args {LinkedList<RideOverview>, bool insertOrAdd (true for insert)}
     ACTIVITY_SELECT_MULTIPLE_NOTIFY, //args {ArrayList<RideOverview> ids, View}
     OPENGL_INIT_NOTIFY,
-    TOUCH_NOTIFY //args MotionEvent
+    TOUCH_NOTIFY, //args MotionEvent
+    REDRAW_NOTIFY
 }
 interface Subject {
     public void attach(Observer observer);
@@ -51,6 +52,11 @@ class ObserverHelper{
             for(Observer o : obs){
                 o.notify(e);
             }
+        });
+    }
+    public static void sendTo(final Observer ob, final ObserverEventArgs e){
+        new Handler(Looper.getMainLooper()).post(() -> {
+                ob.notify(e);
         });
     }
 }

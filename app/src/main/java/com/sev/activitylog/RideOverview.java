@@ -42,8 +42,6 @@ abstract class RideStats implements Serializable {
 }
 
 public class RideOverview extends RideStats implements Serializable {
-    public static transient final double METERS_MILES_CONVERSION = 0.000621371; //this data isn't serialized
-    public static transient final double METERS_FEET_CONVERSION = 3.28084;
 
     private static final long serialVerionUID = 56746437589L;
     private String name;
@@ -128,12 +126,12 @@ public class RideOverview extends RideStats implements Serializable {
         if(!filter.isDefaultValue(filter.gear) && !filter.gear.equalsIgnoreCase(gearId)) return false;
         if(!filter.isDefaultValue(filter.workoutType) && !filter.workoutType.equalsIgnoreCase(activityType)) return false;
 
-        if(!filter.isDefaultValue(filter.maxDist) && filter.maxDist < distance * METERS_MILES_CONVERSION) return false;
-        if(!filter.isDefaultValue(filter.minDist) && filter.minDist > distance * METERS_MILES_CONVERSION) return false;
-        if(!filter.isDefaultValue(filter.maxElevation) && filter.maxElevation < climbed * METERS_FEET_CONVERSION) return false;
-        if(!filter.isDefaultValue(filter.minElevation) && filter.minElevation > climbed * METERS_FEET_CONVERSION) return false;
-        if(!filter.isDefaultValue(filter.maxSpeed) && filter.maxSpeed < averageSpeed * METERS_MILES_CONVERSION * 3600) return false;
-        if(!filter.isDefaultValue(filter.minSpeed) && filter.minSpeed > averageSpeed * METERS_MILES_CONVERSION * 3600) return false;
+        if(!filter.isDefaultValue(filter.maxDist) && filter.maxDist < distance * Settings.metersDistanceConversion()) return false;
+        if(!filter.isDefaultValue(filter.minDist) && filter.minDist > distance * Settings.metersDistanceConversion()) return false;
+        if(!filter.isDefaultValue(filter.maxElevation) && filter.maxElevation < climbed * Settings.metersElevationConversion()) return false;
+        if(!filter.isDefaultValue(filter.minElevation) && filter.minElevation > climbed * Settings.metersElevationConversion()) return false;
+        if(!filter.isDefaultValue(filter.maxSpeed) && filter.maxSpeed < averageSpeed * Settings.metersDistanceConversion() * 3600) return false;
+        if(!filter.isDefaultValue(filter.minSpeed) && filter.minSpeed > averageSpeed * Settings.metersDistanceConversion() * 3600) return false;
         if(!filter.isDefaultValue(filter.maxTime) && filter.maxTime < time) return false;
         if(!filter.isDefaultValue(filter.minTime) && filter.minTime > time) return false;
         if(!filter.isDefaultValue(filter.maxPow) && filter.maxPow < avgWatts) return false;

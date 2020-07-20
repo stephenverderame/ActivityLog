@@ -1,10 +1,12 @@
 package com.sev.activitylog;
 
+import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.Toolbar;
 
 import android.app.Application;
 import android.content.Context;
+import android.content.DialogInterface;
 import android.content.Intent;
 import android.graphics.Color;
 import android.os.Build;
@@ -24,6 +26,7 @@ import android.widget.EditText;
 import android.widget.LinearLayout;
 import android.widget.SeekBar;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import java.io.BufferedReader;
 import java.io.FileNotFoundException;
@@ -36,6 +39,7 @@ import java.io.PrintWriter;
 import java.io.Serializable;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.LinkedList;
 import java.util.Timer;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
@@ -75,6 +79,9 @@ public class DetailedActivityView extends AppCompatActivity implements Observer 
     private MapImage map;
     private StorageModel model;
     private boolean shouldSave;
+
+    private TrendsFragment trends;
+    private LinkedList<RideOverview> matchedRides;
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -101,6 +108,16 @@ public class DetailedActivityView extends AppCompatActivity implements Observer 
                 }));
                 masterContainer.removeAllViews();
                 masterContainer.addView(gl);
+                Settings s = Settings.getInstance(getSharedPreferences(Settings.PREFERENCES_ID, MODE_PRIVATE));
+                if(s.showGLInstructions()) {
+                    new AlertDialog.Builder(DetailedActivityView.this).setMessage(R.string.gl_instructions).setNeutralButton(R.string.ok, null).setNegativeButton(R.string.got_it, new DialogInterface.OnClickListener() {
+                        @Override
+                        public void onClick(DialogInterface dialogInterface, int i) {
+                            s.setGlInstructions(false);
+                            s.save(getSharedPreferences(Settings.PREFERENCES_ID, MODE_PRIVATE));
+                        }
+                    }).show();
+                }
             }
         });
         dirtyNotes = false;
@@ -161,7 +178,7 @@ public class DetailedActivityView extends AppCompatActivity implements Observer 
             shouldSave = false;
         }else { //if data is not cached
             if(token == null)
-                token = new AuthToken(getSharedPreferences("auth_token", MODE_PRIVATE));
+                token = new AuthToken(getSharedPreferences(AuthToken.PREFERENCES_ID, MODE_PRIVATE));
             Log.d("Detail", "Doing authentication!");
             auth = new OAuth(token);
             auth.attach(this);
@@ -170,6 +187,12 @@ public class DetailedActivityView extends AppCompatActivity implements Observer 
         }
         gl = new GLView(DetailedActivityView.this);
         gl.attach(DetailedActivityView.this);
+        matchedRides = new LinkedList<>();
+        trends = (TrendsFragment)getSupportFragmentManager().findFragmentById(R.id.matchedRidesFragment);
+        trends.setData(matchedRides);
+        StorageModel data = new StorageModel(this);
+        data.attach(this);
+        data.getRides(0);
 
     }
     @Override
@@ -200,11 +223,11 @@ public class DetailedActivityView extends AppCompatActivity implements Observer 
                     view.setTitle(rideBasics.getName());
                     view.setSubtitle(new SimpleDateFormat("MMM dd yyyy hh:mm a").format(rideBasics.getDate()));
                     view.setInfoGrid(10, 3);
-                    view.setInfo("Distance", String.format("%.2f miles", rideBasics.getDistance() * RideOverview.METERS_MILES_CONVERSION), 0, 0);
+                    view.setInfo("Distance", String.format("%.2f %s", rideBasics.getDistance() * Settings.metersDistanceConversion(), Settings.distanceUnits()), 0, 0);
                     view.setInfo("Moving Time", TimeSpan.fromSeconds((long) rideBasics.getMovingTime()), 0, 1);
-                    view.setInfo("Elevation", String.format("%.2f ft", rideBasics.getClimbed() * RideOverview.METERS_FEET_CONVERSION), 0, 2);
+                    view.setInfo("Elevation", String.format("%.2f %s", rideBasics.getClimbed() * Settings.metersElevationConversion(), Settings.elevationUnits()), 0, 2);
                     view.setInfo("Gear", rideData.getGearName(), 1, 0);
-                    view.setInfo("Average Speed", String.format("%.1f mph", rideBasics.getAverageSpeed() * RideOverview.METERS_MILES_CONVERSION * 3600.0), 1, 1);
+                    view.setInfo("Average Speed", String.format("%.1f %s", rideBasics.getAverageSpeed() * Settings.metersDistanceConversion() * 3600.0, Settings.speedUnits()), 1, 1);
                     view.setInfo("Average Power", String.format("%.2f W", rideBasics.getPower()), 1, 2);
                     view.setInfo("Total Time", TimeSpan.fromSeconds((long) rideBasics.getTotalTime()), 2, 0);
                     view.setInfo("Activity", rideBasics.getActivityType(), 2, 1);
@@ -246,12 +269,17 @@ public class DetailedActivityView extends AppCompatActivity implements Observer 
                 RouteDecorator route = new RouteDecorator();
                 route.decorate(img);
                 route.setRoute(rideData.getRoute());
-                this.route = route;
-                view.setMap(route, 3, 0, 7, 3);
+                MapDecorator decorator = route;
+/*                if(TrailDecorator.isOffroad(img)) {
+                    decorator = new TrailDecorator(this);
+                    decorator.decorate(route);
+                }*/
+                this.route = decorator;
+                view.setMap(decorator, 3, 0, 7, 3);
                 view.invalidate();
                 map = img;
                 if(heightMap == null) {
-                    heightMap = Pos.getHeightMap(120, 120, new Pos(route.mapBounds.top, route.mapBounds.left), new Pos(route.mapBounds.bottom, route.mapBounds.right));
+                    heightMap = Pos.getHeightMap(120, 120, new Pos(route.mapBounds.top, route.mapBounds.left), new Pos(route.mapBounds.bottom, route.mapBounds.right), this);
                 }
                 break;
             }
@@ -275,12 +303,29 @@ public class DetailedActivityView extends AppCompatActivity implements Observer 
                 gl.addRendererPass(shadow);
                 gl.setRendererScene(scene);
                 gl.setRendererView(camera);
- //               gl.requestRender();
+                gl.requestRender();
 //                gl.setDrawLogic(this);
                 break;
             }
             case TOUCH_NOTIFY:
                 onGLTouch((MotionEvent)e.getEventArgs()[0]);
+                break;
+            case RIDES_LOAD_PARTIAL_NOTIFY:
+            {
+                LinkedList<RideOverview> rides = (LinkedList<RideOverview>)e.getEventArgs()[0];
+                for(RideOverview r : rides){
+                    if(Math.abs(r.getDistance() - rideBasics.getDistance()) < 500
+                    && Math.abs(r.getClimbed() - rideBasics.getClimbed()) < 100){
+                        matchedRides.add(r);
+                    }
+                }
+                break;
+            }
+            case RIDES_LOAD_NOTIFY:
+                trends.notifyDataFinish();
+                break;
+            case REDRAW_NOTIFY:
+                gl.requestRender();
                 break;
         }
     }
@@ -317,15 +362,21 @@ public class DetailedActivityView extends AppCompatActivity implements Observer 
     }
 
     @Override
-    protected void onStop(){
-        if(dirtyNotes) saveNotes();
+    protected void onDestroy(){
         gl.destructor();
-        if(shouldSave) {
+        super.onDestroy();
+    }
+
+    @Override
+    protected void onStop() {
+        if(dirtyNotes) saveNotes();
+        if(shouldSave && rideData != null) {
             model.saveDetailedRide(rideData);
+            token.save();
         }
         if(heightMap != null && map != null){
             RepeatCache.getInstance(this).save(map, heightMap);
-            RepeatCache.getInstance(this).serialize(this);
+            RepeatCache.getInstance(this).serialize();
         }
         super.onStop();
     }
@@ -409,6 +460,6 @@ public class DetailedActivityView extends AppCompatActivity implements Observer 
             default:
                 return;
         }
-//        gl.requestRender();
+        gl.requestRender();
     }
 }

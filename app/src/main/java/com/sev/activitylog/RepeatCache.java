@@ -18,8 +18,9 @@ public class RepeatCache {
     private static transient final String HEAP_FILE = "heap.db";
     private static transient RepeatCache instance;
     private CacheEntry[] heap;
+    private Context ctx;
     private RepeatCache(Context ctx){
-        int size = 16;
+        int size = 32;
         try(ObjectInputStream input = new ObjectInputStream(ctx.openFileInput(HEAP_FILE))){
             size = input.readInt();
             heap = (CacheEntry[])input.readObject();
@@ -28,8 +29,9 @@ public class RepeatCache {
             heap = new CacheEntry[size];
         }
         HEAP_SIZE = size;
+        this.ctx = ctx;
     }
-    public synchronized void serialize(Context ctx){
+    public synchronized void serialize(){
         for(int i = 0; i < HEAP_SIZE; ++i){
             if(heap[i] != null) {
                 try {
@@ -51,6 +53,10 @@ public class RepeatCache {
             e.printStackTrace();
         }
     }
+    public synchronized void deleteFile() {
+        ctx.deleteFile(HEAP_FILE);
+        heap = new CacheEntry[HEAP_SIZE];
+    }
     public synchronized void save(MapImage img, Future<Pos[][]> heights){
         for(int i = 0; i < HEAP_SIZE; ++i){
             if(heap[i] != null && isReusable(heap[i].map.mapBounds, img.mapBounds)){
@@ -58,7 +64,7 @@ public class RepeatCache {
                 heapifyDown(i);
                 return;
             }else if(heap[i] == null){
-                heap[i] = new CacheEntry(img, heights);;
+                heap[i] = new CacheEntry(img, heights);
                 heapifyUp(i);
                 return;
             }
@@ -131,6 +137,8 @@ public class RepeatCache {
     public synchronized static RepeatCache getInstance(Context ctx){
         if(instance == null)
             instance = new RepeatCache(ctx);
+        else
+            instance.ctx = ctx;
         return instance;
     }
 }

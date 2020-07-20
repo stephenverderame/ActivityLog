@@ -8,6 +8,9 @@ public class Util {
     public static int rgba(float r, float g, float b, float a){
         return ((int)(a * 0xFF) << 24) | ((int)(r * 0xFF) << 16) | ((int)(g * 0xFF) << 8) | ((int)(b * 0xFF));
     }
+    public static int rgba_v(int r, int g, int b, int a) {
+        return ((int)(a) << 24) | ((int)(r) << 16) | ((int)(g) << 8) | ((int)(b));
+    }
     public static int setAlpha(int color, float alpha){
         return ((int)(alpha * 0xFF) << 24) | (color & 0x00FFFFFF);
     }
@@ -30,23 +33,27 @@ public class Util {
     }
 
     public static double getStat(RideStats r, FunctionalSpinnerItem item){
-        if(item.equals(FunctionalSpinnerItem.SPIN_STAT_ACTIVITIES)) return r.getDate().getTime();
+        if(item.equals(FunctionalSpinnerItem.SPIN_STAT_ACTIVITY_DATE)) return r.getDate().getTime();
+        else if(item.equals(FunctionalSpinnerItem.SPIN_STAT_ACTIVITIES)) return r.getCount();
         else if(item.equals(FunctionalSpinnerItem.SPIN_STAT_ACTIVITY_TYPE)) return toBase26(r.getActivityType());
-        else if(item.equals(FunctionalSpinnerItem.SPIN_STAT_AVG_SPEED)) return r.getAverageSpeed() * RideOverview.METERS_MILES_CONVERSION * 3600;
+        else if(item.equals(FunctionalSpinnerItem.SPIN_STAT_AVG_SPEED)) return r.getAverageSpeed() * Settings.metersDistanceConversion() * 3600;
         else if(item.equals(FunctionalSpinnerItem.SPIN_STAT_CALORIES)) return r.getKJ() / 4.184 * 4;
-        else if(item.equals(FunctionalSpinnerItem.SPIN_STAT_DISTANCE)) return r.getDistance() * RideOverview.METERS_MILES_CONVERSION;
-        else if(item.equals(FunctionalSpinnerItem.SPIN_STAT_ELEVATION)) return r.getClimbed() * RideOverview.METERS_FEET_CONVERSION;
+        else if(item.equals(FunctionalSpinnerItem.SPIN_STAT_DISTANCE)) return r.getDistance() * Settings.metersDistanceConversion();
+        else if(item.equals(FunctionalSpinnerItem.SPIN_STAT_ELEVATION)) return r.getClimbed() * Settings.metersElevationConversion();
         else if(item.equals(FunctionalSpinnerItem.SPIN_STAT_MV_TIME)) return r.getMovingTime();
-        else if(item.equals(FunctionalSpinnerItem.SPIN_STAT_MX_SPEED)) return r.getMaxSpeed() * RideOverview.METERS_MILES_CONVERSION * 3600;
+        else if(item.equals(FunctionalSpinnerItem.SPIN_STAT_MX_SPEED)) return r.getMaxSpeed() * Settings.metersDistanceConversion() * 3600;
         else if(item.equals(FunctionalSpinnerItem.SPIN_STAT_TL_TIME)) return r.getTotalTime();
         else if(item.equals(FunctionalSpinnerItem.SPIN_STAT_POWER)) return r.getPower();
+        else if(item.equals(FunctionalSpinnerItem.SPIN_STAT_ACTIVITY_INDEX)) return 0; //graphView will reformat data
         else throw new IllegalArgumentException(item.toString() + " is not a defined field!");
     }
     public static long toBase26(String str){
         long val = 0;
         str = str.toUpperCase();
         for(int i = 0; i < str.length(); ++i){
-            val += (Character.getNumericValue(str.charAt(i)) - 'A') * Math.pow(26, str.length()  - 1 - i);
+            int num = str.charAt(i) - 'A';
+            if(num > 26 || num < 0) throw new IllegalArgumentException("Only alphabetic characters allowed!");
+            val += num * Math.pow(26, str.length()  - 1 - i);
         }
         return val;
     }
@@ -68,12 +75,12 @@ public class Util {
         }else if(stat.equals(FunctionalSpinnerItem.SPIN_STAT_ACTIVITY_TYPE)){
             output = fromBase26((long)val);
         }else if(stat.equals(FunctionalSpinnerItem.SPIN_STAT_DISTANCE)){
-            output = String.format("%.2f miles", val * RideOverview.METERS_MILES_CONVERSION);
+            output = String.format("%.2f miles", val * Settings.metersDistanceConversion());
         }else if(stat.equals(FunctionalSpinnerItem.SPIN_STAT_ELEVATION)){
-            output = String.format("%.2f feet", val * RideOverview.METERS_FEET_CONVERSION);
+            output = String.format("%.2f feet", val * Settings.metersElevationConversion());
         }
         else if(stat.equals(FunctionalSpinnerItem.SPIN_STAT_AVG_SPEED) || stat.equals(FunctionalSpinnerItem.SPIN_STAT_MX_SPEED)){
-            output = String.format("%.2f mph", val * RideOverview.METERS_MILES_CONVERSION * 3600);
+            output = String.format("%.2f mph", val * Settings.metersDistanceConversion() * 3600);
         }
         else if(stat.equals(FunctionalSpinnerItem.SPIN_STAT_POWER)){
             output = String.format("%.2f W", val);

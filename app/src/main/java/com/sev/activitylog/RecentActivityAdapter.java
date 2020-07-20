@@ -61,8 +61,8 @@ public class RecentActivityAdapter extends RecyclerView.Adapter<RecentActivityAd
         ((TextView)holder.cardItemView.findViewById(R.id.cardDate)).setText(new SimpleDateFormat("MMM dd yyyy hh:mm a").format(data.get(position).getDate()));
         ((TextView)holder.cardItemView.findViewById(R.id.cardActivityType)).setText(data.get(position).getActivityType());
 //        ((TextView)holder.cardItemView.findViewById(R.id.cardGear)).setText(data.get(position).getGearId());
-        ((TextView)holder.cardItemView.findViewById(R.id.cardDistance)).setText(String.format("%.2f miles", data.get(position).getDistance() * 0.000621371));
-        ((TextView)holder.cardItemView.findViewById(R.id.cardElevation)).setText(String.format("%.2f ft", data.get(position).getClimbed() * 3.28084));
+        ((TextView)holder.cardItemView.findViewById(R.id.cardDistance)).setText(String.format("%.2f %s", data.get(position).getDistance() * Settings.metersDistanceConversion(), Settings.distanceUnits()));
+        ((TextView)holder.cardItemView.findViewById(R.id.cardElevation)).setText(String.format("%.2f %s", data.get(position).getClimbed() * Settings.metersElevationConversion(), Settings.elevationUnits()));
         ((TextView)holder.cardItemView.findViewById(R.id.cardTime)).setText(TimeSpan.fromSeconds((long)data.get(position).getMovingTime()));
 
         holder.cardItemView.setOnClickListener((View v) -> {
@@ -199,7 +199,7 @@ class WeekViewAdapter extends RecyclerView.Adapter<WeekViewAdapter.WeekViewHolde
             View view = holder.days[i];
             if(RideOverview.isSameDay(rides.get(j).getDate(), dayToAdd)){
                 ((TextView)view.findViewById(R.id.dayTime)).setText(TimeSpan.fromSeconds(rides.get(j).getMovingTime()));
-                ((TextView)view.findViewById(R.id.dayDistance)).setText(String.format("%.2f miles", rides.get(j).getDistance() * RideOverview.METERS_MILES_CONVERSION));
+                ((TextView)view.findViewById(R.id.dayDistance)).setText(String.format("%.2f %s", rides.get(j).getDistance() * Settings.metersDistanceConversion(), Settings.distanceUnits()));
                 int k = j;
                 ArrayList<RideOverview> duplications = new ArrayList<>();
                 duplications.add(rides.get(j));
@@ -245,8 +245,8 @@ class WeekViewAdapter extends RecyclerView.Adapter<WeekViewAdapter.WeekViewHolde
 
         }
         ((TextView)holder.v.findViewById(R.id.weekTime)).setText(TimeSpan.fromSeconds(weekOverview.get(position).getMovingTime()));
-        ((TextView)holder.v.findViewById(R.id.weekDistance)).setText(String.format("%.2f miles", weekOverview.get(position).getDistance() * RideOverview.METERS_MILES_CONVERSION));
-        ((TextView)holder.v.findViewById(R.id.weekElevation)).setText(String.format("%.2f ft", weekOverview.get(position).getClimbed() * RideOverview.METERS_FEET_CONVERSION));
+        ((TextView)holder.v.findViewById(R.id.weekDistance)).setText(String.format("%.2f %s", weekOverview.get(position).getDistance() * Settings.metersDistanceConversion(), Settings.distanceUnits()));
+        ((TextView)holder.v.findViewById(R.id.weekElevation)).setText(String.format("%.2f %s", weekOverview.get(position).getClimbed() * Settings.metersElevationConversion(), Settings.elevationUnits()));
     }
 
     @Override

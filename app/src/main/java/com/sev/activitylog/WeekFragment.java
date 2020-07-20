@@ -82,6 +82,7 @@ public class WeekFragment extends DataFragment {
         }
         if(viewAdapter == null) {
             viewAdapter = sf == null ? new WeekViewAdapter(data, getContext()) : new WeekViewAdapter(data, sf, getContext());
+            if(data.size() > 1) viewAdapter.init();
             viewAdapter.attach(mediator);
         }
         if(finished || lastState != null) viewAdapter.init();
