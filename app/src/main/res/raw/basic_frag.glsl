@@ -1,5 +1,5 @@
 #version 300 es
-precision mediump float;
+precision highp float;
 in vec2 tCoords;
 in vec3 norm;
 in vec3 fragPos;

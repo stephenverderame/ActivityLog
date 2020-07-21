@@ -287,7 +287,7 @@ public class DetailedActivityView extends AppCompatActivity implements Observer 
             {
                 //all opengl initialization must be in here
                 scene = new GLSceneComposite();
-                scene.addObject(new Skybox(new int[] {R.drawable.bluecloud_rt, R.drawable.bluecloud_lf, R.drawable.bluecloud_up, R.drawable.bluecloud_dn, R.drawable.bluecloud_ft,
+                scene.addObject(new Skybox(new int[] {R.drawable.bluecloud_lf, R.drawable.bluecloud_rt, R.drawable.bluecloud_up, R.drawable.bluecloud_dn, R.drawable.bluecloud_ft,
                         R.drawable.bluecloud_bk}, getResources(), getResources().getInteger(R.integer.sky_shader_id)), false); //https://opengameart.org/content/cloudy-skyboxes));
                 terrain = new Terrain(route, heightMap);
                 terrain.scale(100f, 100f, 100f);

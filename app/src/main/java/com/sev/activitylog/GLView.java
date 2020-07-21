@@ -382,7 +382,7 @@ class GLShadowPass extends GLRenderPass {
     private float[] viewProj;
     private GLRendererShaderManager shaderManager;
     private final Resources rs;
-    public static final int SHADOWMAP_RES = 2048;
+    public static final int SHADOWMAP_RES = 1024;
     private final DirectionalLight caster;
     float[] minBounds, maxBounds;
     public GLShadowPass(final DirectionalLight caster, final float[] center, Resources resources) {
@@ -396,7 +396,7 @@ class GLShadowPass extends GLRenderPass {
         GLES30.glBindFramebuffer(GLES30.GL_FRAMEBUFFER, fbo[0]);
         GLES30.glGenTextures(1, tex, 0);
         GLES30.glBindTexture(GLES30.GL_TEXTURE_2D, tex[0]);
-        GLES30.glTexImage2D(GLES30.GL_TEXTURE_2D, 0, GLES30.GL_DEPTH_COMPONENT, SHADOWMAP_RES, SHADOWMAP_RES, 0, GLES30.GL_DEPTH_COMPONENT, GLES30.GL_FLOAT, null);
+        GLES30.glTexImage2D(GLES30.GL_TEXTURE_2D, 0, GLES30.GL_DEPTH_COMPONENT32F, SHADOWMAP_RES, SHADOWMAP_RES, 0, GLES30.GL_DEPTH_COMPONENT, GLES30.GL_FLOAT, null);
         GLES30.glTexParameteri(GLES30.GL_TEXTURE_2D, GLES30.GL_TEXTURE_MIN_FILTER, GLES30.GL_NEAREST);
         GLES30.glTexParameteri(GLES30.GL_TEXTURE_2D, GLES30.GL_TEXTURE_MAG_FILTER, GLES30.GL_NEAREST);
         GLES30.glTexParameteri(GLES30.GL_TEXTURE_2D, GLES30.GL_TEXTURE_WRAP_S, GLES30.GL_CLAMP_TO_EDGE);
