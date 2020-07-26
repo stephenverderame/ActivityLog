@@ -145,6 +145,7 @@ class WeekViewAdapter extends RecyclerView.Adapter<WeekViewAdapter.WeekViewHolde
             Calendar now = Calendar.getInstance();
             now.setTime(new Date()); //sets dat to now
             latestDayOfWeek = (now.get(Calendar.DAY_OF_WEEK) + 5) % 7; //convert Sunday (1) to Saturday (7) to Monday (0) to Sunday (6)
+            String lastMonth = new SimpleDateFormat("MMM").format(now.getTime());
             now.setTime(rides.get(rides.size() - 1).getDate());
             firstDayOfWeek = (now.get(Calendar.DAY_OF_WEEK) + 5) % 7;
             for(int i = 0; i < numWeeks; ++i){
@@ -158,12 +159,11 @@ class WeekViewAdapter extends RecyclerView.Adapter<WeekViewAdapter.WeekViewHolde
                     overview.setClimbed(overview.getClimbed() + rides.get(k).getClimbed());
                     overview.setAvgSpeed(overview.getAverageSpeed() + rides.get(k).getAverageSpeed());
                     overview.setPower(overview.getPower() + rides.get(k).getPower());
-                    long day = (System.currentTimeMillis() - (latestDayOfWeek * (1000 * 3600 * 24))) - (long)i * 1000 * 3600 * 24 * 7; //epoch time of start date
-                    Date startDate = new Date(day);
-                    overview.setDate(startDate);
-                    overview.setName("Week of " + new SimpleDateFormat("MMM dd yyyy").format(startDate));
-
                 }
+                long day = (System.currentTimeMillis() - (latestDayOfWeek * (1000 * 3600 * 24))) - (long)i * 1000 * 3600 * 24 * 7; //epoch time of start date
+                Date startDate = new Date(day);
+                overview.setDate(startDate);
+                overview.setName("Week of " + new SimpleDateFormat("MMM dd yyyy").format(startDate));
                 overview.setPower(overview.getPower() / (indexRange[1] - indexRange[0]));
                 overview.setAvgSpeed(overview.getAverageSpeed() / (indexRange[1] - indexRange[0]));
                 if(filter == null || overview.doesApply(filter)){
@@ -319,6 +319,9 @@ class WeekViewAdapter extends RecyclerView.Adapter<WeekViewAdapter.WeekViewHolde
                 ((TextView)days[i].findViewById(R.id.dayName)).setText(dayOfWeek[i]);
                 row.addView(days[i]);
             }
+        }
+        public WeekViewHolder(View view, boolean nonStandard){
+            super(view);
         }
     }
 }

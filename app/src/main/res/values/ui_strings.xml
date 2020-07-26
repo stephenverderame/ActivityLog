@@ -23,4 +23,12 @@
     <string name="delete_confirmation">All local data has been erased</string>
     <string name="gl_instructions">Use one finger to pan. Place one finger in the bottom left of the screen and use the other finger to rotate. Pinch with two fingers to zoom</string>
     <string name="got_it">Don\'t show again</string>
+
+    <string name="mon">Mon</string>
+    <string name="tue">Tue</string>
+    <string name="wed">Wed</string>
+    <string name="thu">Thu</string>
+    <string name="fri">Fri</string>
+    <string name="sat">Sat</string>
+    <string name="sun">Sun</string>
 </resources>

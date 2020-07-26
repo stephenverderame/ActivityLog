@@ -355,8 +355,6 @@ public class DetailedActivityView extends AppCompatActivity implements Observer 
                 out.write(((EditText)findViewById(R.id.rideNotes)).getText().toString());
             } catch (FileNotFoundException e) {
                 e.printStackTrace();
-            } catch (IOException e) {
-                e.printStackTrace();
             }
         }
     }

@@ -29,11 +29,16 @@
             <fragment android:name="com.sev.activitylog.FilterFragment"
                 android:layout_width="match_parent" android:layout_height="wrap_content"
                 android:id="@+id/filterView"/>
-            <FrameLayout
+            <ScrollView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_weight="900">
+            <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="match_parent"
-                android:layout_weight="90"
+                android:orientation="vertical"
                 android:id="@+id/main_fragment_container"/>
+            </ScrollView>
             <com.google.android.material.bottomnavigation.BottomNavigationView
                 android:id="@+id/navBar"
                 android:layout_width="match_parent"

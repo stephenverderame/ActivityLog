@@ -7,10 +7,13 @@ import android.view.ContextThemeWrapper;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.LinearLayout;
+import android.widget.ScrollView;
 
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
+import java.util.Date;
 import java.util.List;
 
 public class WeekFragment extends DataFragment {
@@ -77,7 +80,7 @@ public class WeekFragment extends DataFragment {
 
     public View onCreateView(LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
         if(view == null) {
-            view = new RecyclerView(new ContextThemeWrapper(getContext(), R.style.ScrollbarRecyclerView));
+            view = new RecyclerView(getContext());
             view.setLayoutManager(new LinearLayoutManager(getContext()));
         }
         if(viewAdapter == null) {

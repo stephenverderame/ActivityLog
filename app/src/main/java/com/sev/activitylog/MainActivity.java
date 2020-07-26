@@ -23,6 +23,7 @@ import android.widget.Toast;
 import com.google.android.material.bottomnavigation.BottomNavigationView;
 
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.concurrent.Future;
@@ -127,7 +128,8 @@ public class MainActivity extends AppCompatActivity implements Observer, Navigat
                     case R.id.weekMenuItem:
                         if(finishedLoading) {
                             FragmentTransaction trans = getSupportFragmentManager().beginTransaction();
-                            trans.replace(R.id.main_fragment_container, fragments[WEEK_PAGE]);
+                            trans.replace(R.id.main_fragment_container, new MonthFragment(new Date(System.currentTimeMillis()), rideList, MainActivity.this));
+                            trans.add(R.id.main_fragment_container, fragments[WEEK_PAGE]);
                             trans.commit();
                             lastPage = WEEK_PAGE;
                         }

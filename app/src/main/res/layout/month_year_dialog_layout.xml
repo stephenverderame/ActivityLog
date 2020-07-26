@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout
+    xmlns:android="http://schemas.android.com/apk/res/android" android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
+    android:orientation="horizontal"
+    android:layout_margin="5dp">
+    <Spinner android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_gravity="fill_horizontal" android:id="@+id/monthSpinner" android:spinnerMode="dialog"
+        android:entries="@array/months" />
+    <Spinner android:layout_height="wrap_content" android:layout_width="wrap_content" android:layout_gravity="fill_horizontal"
+        android:id="@+id/yearSpinner" android:spinnerMode="dialog" />
+</LinearLayout>

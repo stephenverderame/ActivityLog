@@ -202,6 +202,23 @@ public class RideOverview extends RideStats implements Serializable {
         } while(start <= end);
         return -1;
     }
+    public static int indexOfExactDay(List<RideOverview> rides, Date d){
+        int index, start = 0, end = rides.size() - 1;
+        if(rides.get(start).date.before(rides.get(end).date)) throw new IllegalStateException("list should be ordered most recent to least recent");
+        do{
+            index = (int)Math.round((double)(end - start) / (rides.get(start).date.getTime() - rides.get(end).date.getTime()) * (rides.get(start).date.getTime() - d.getTime()) + start);
+            if(index < start) index = start;
+            if(index > end) index = end;
+            if(isSameDay(rides.get(index), d)) return index;
+            else if(rides.get(index).date.before(d)){
+                end = index - 1;
+            }
+            else if(rides.get(index).date.after(d)){
+                start = index + 1;
+            }
+        } while(start <= end);
+        return -1;
+    }
 
 
 }
