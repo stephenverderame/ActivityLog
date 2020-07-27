@@ -1,51 +1,53 @@
 package com.sev.activitylog;
 
 import android.app.DatePickerDialog;
-import android.content.Context;
 import android.os.Bundle;
-import android.util.AttributeSet;
-import android.view.ContextThemeWrapper;
+import android.os.Parcel;
+import android.os.Parcelable;
 import android.view.Gravity;
 import android.view.LayoutInflater;
 import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.DatePicker;
-import android.widget.FrameLayout;
 import android.widget.GridLayout;
-import android.widget.HorizontalScrollView;
 import android.widget.TextView;
 
-import androidx.annotation.NonNull;
-import androidx.annotation.Nullable;
 import androidx.cardview.widget.CardView;
 import androidx.fragment.app.Fragment;
-import androidx.recyclerview.widget.LinearLayoutManager;
-import androidx.recyclerview.widget.RecyclerView;
 
 import java.text.SimpleDateFormat;
 import java.util.Calendar;
 import java.util.Date;
 import java.util.List;
+import java.util.Locale;
 
-public class MonthFragment extends Fragment implements View.OnTouchListener {
+public class MonthFragment extends Fragment implements View.OnTouchListener, View.OnClickListener {
     private Date month;
     private int totalDays, startingDay;
     private String monthName;
-    private Observer controller;
     private List<RideOverview> rides;
     private float touchX = -1, touchY = -1;
     private View[] dayViews;
     private View view;
+    private boolean collapse;
+    private Observer mediator;
     public MonthFragment(Date month, List<RideOverview> rides, Observer mediator){
         this.month = month;
-        controller = mediator;
+        this.mediator = mediator;
         this.rides = rides;
+        collapse = false;
+    }
+    public void setData(List<RideOverview> rides, Date month){
+        if(rides != null) this.rides = rides;
+        if(month != null) this.month = month;
+        recreate();
     }
     public View onCreateView(LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
-        if(view == null) {
+//        if(view == null) {
             view = inflater.inflate(R.layout.month_view, null);
             GridLayout grid = (GridLayout) view.findViewById(R.id.monthGrid);
+            view.findViewById(R.id.monthCollapse).setOnClickListener(this);
             dayViews = new View[6 * 7];
             for (int i = 0; i < 6; ++i) {
                 for (int d = 0; d < 7; ++d) {
@@ -64,7 +66,8 @@ public class MonthFragment extends Fragment implements View.OnTouchListener {
             }
             view.findViewById(R.id.monthViewName).setOnTouchListener(this);
             recreate();
-        }
+            collapse(collapse);
+//        }
         return view;
     }
 
@@ -111,15 +114,21 @@ public class MonthFragment extends Fragment implements View.OnTouchListener {
         }
         return true;
     }
+    public void collapse(boolean collapse){
+        int visibility = collapse ? View.GONE : View.VISIBLE;
+        for(int i = 0; i < dayViews.length; ++i)
+            dayViews[i].setVisibility(visibility);
+    }
 
     private void recreate() {
+        if(view == null) return;
         if(month == null) month = new Date(System.currentTimeMillis());
         Calendar cal = Calendar.getInstance();
         cal.setTime(month);
         totalDays = cal.getActualMaximum(Calendar.DAY_OF_MONTH);
         cal.set(Calendar.DAY_OF_MONTH, 1);
         startingDay = (cal.get(Calendar.DAY_OF_WEEK) + 5) % 7; //index 0 (mon) to 6 (sun)
-        monthName = new SimpleDateFormat("MMMM yyyy").format(month);
+        monthName = new SimpleDateFormat("MMMM yyyy", Locale.getDefault()).format(month);
         ((TextView)view.findViewById(R.id.monthViewName)).setText(monthName);
         int days = 0;
         for(int i = 0; i < 6; ++i){
@@ -137,11 +146,11 @@ public class MonthFragment extends Fragment implements View.OnTouchListener {
                             indicator.setVisibility(View.VISIBLE);
                             int exertion = rides.get(ride).getExertion();
                             indicator.setCardBackgroundColor(exertion <= 5 ? Util.rgba(exertion / 5.f, 1.f, 0, 1) : Util.rgba(1.0f, (10 - exertion) / 4.f, 0, 1));
-                            if (controller != null)
+                            if (mediator != null)
                                 v.setOnClickListener(new View.OnClickListener() {
                                     @Override
                                     public void onClick(View view) {
-                                        controller.notify(new ObserverEventArgs(ObserverNotifications.ACTIVITY_SELECT_NOTIFY, rides.get(ride)));
+                                        mediator.notify(new ObserverEventArgs(ObserverNotifications.ACTIVITY_SELECT_NOTIFY, rides.get(ride)));
                                     }
                                 });
 
@@ -159,5 +168,16 @@ public class MonthFragment extends Fragment implements View.OnTouchListener {
             }
         }
         view.invalidate();
+    }
+    @Override
+    public void onClick(View view) {
+        String txt = collapse ? "↑" : "↓";
+        ((TextView)view.findViewById(R.id.monthCollapse)).setText(txt);
+        collapse = !collapse;
+        this.collapse(collapse);
+    }
+
+    public void notifyDataChanged() {
+        recreate();
     }
 }

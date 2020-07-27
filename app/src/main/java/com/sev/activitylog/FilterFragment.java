@@ -29,6 +29,7 @@ import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
+import java.util.Locale;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 
@@ -103,9 +104,9 @@ public class FilterFragment extends Fragment implements View.OnClickListener, Vi
                 if(view.findViewById(R.id.advanced_filters_container).getVisibility() == View.VISIBLE) {
                         try {
                             entry = (EditText) view.findViewById(R.id.start_date_filter);
-                            if(entry.getText().toString().length() >= 1) builder.startDate(new SimpleDateFormat("MM/dd/yyyy").parse(entry.getText().toString()));
+                            if(entry.getText().toString().length() >= 1) builder.startDate(new SimpleDateFormat("MM/dd/yyyy", Locale.getDefault()).parse(entry.getText().toString()));
                             entry = (EditText) view.findViewById(R.id.end_date_filter);
-                            if(entry.getText().toString().length() >= 1) builder.endDate(new SimpleDateFormat("MM/dd/yyyy").parse(entry.getText().toString()));
+                            if(entry.getText().toString().length() >= 1) builder.endDate(new SimpleDateFormat("MM/dd/yyyy", Locale.getDefault()).parse(entry.getText().toString()));
                             entry = (EditText) view.findViewById(R.id.time_min_filter);
                             if(entry.getText().toString().length() >= 1) builder.minTime((int) (kkmmToInt(entry.getText().toString())));
                             entry = (EditText) view.findViewById(R.id.time_max_filter);
@@ -156,7 +157,7 @@ public class FilterFragment extends Fragment implements View.OnClickListener, Vi
                         builder.maxPow(Float.parseFloat(entry.getText().toString()));
 
                     view.findViewById(R.id.advanced_filters_container).setVisibility(View.GONE);
-                    ((Button)view.findViewById(R.id.advanced_filter_btn)).setText("Advanced");
+                    ((Button)view.findViewById(R.id.advanced_filter_btn)).setText(getString(R.string.advanced));
                 }
                 if(searchListener != null) searchListener.search(builder.build());
                 break;
@@ -174,7 +175,7 @@ public class FilterFragment extends Fragment implements View.OnClickListener, Vi
             DatePickerDialog dialog = new DatePickerDialog(getContext(), new DatePickerDialog.OnDateSetListener() {
                 @Override
                 public void onDateSet(DatePicker datePicker, int year, int month, int day) {
-                    ((EditText)view.findViewById(editTextId)).setText(String.format("%02d/%02d/%04d", month + 1, day, year));
+                    ((EditText)view.findViewById(editTextId)).setText(String.format(Locale.getDefault(), "%02d/%02d/%04d", month + 1, day, year));
                 }
             }, 2020, 1, 1);
             dialog.show();
@@ -189,7 +190,7 @@ public class FilterFragment extends Fragment implements View.OnClickListener, Vi
         TimePickerDialog dialog = new TimePickerDialog(getContext(), new TimePickerDialog.OnTimeSetListener() {
             @Override
             public void onTimeSet(TimePicker timePicker, int hour, int minute) {
-                ((EditText)view.findViewById(editTextId)).setText(String.format("%02d:%02d", hour, minute));
+                ((EditText)view.findViewById(editTextId)).setText(String.format(Locale.getDefault(), "%02d:%02d", hour, minute));
             }
         }, 1, 0, true);
         dialog.show();

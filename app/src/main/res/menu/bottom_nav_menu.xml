@@ -2,9 +2,9 @@
 <menu
     xmlns:android="http://schemas.android.com/apk/res/android" android:layout_width="match_parent"
     android:layout_height="match_parent">
-    <item android:enabled="true" android:title="Recent" android:id="@+id/recentMenuItem"/>
-    <item android:enabled="true" android:title="Weeks" android:id="@+id/weekMenuItem"/>
-    <item android:enabled="true" android:title="Stats" android:id="@+id/statMenuItem"/>
-    <item android:enabled="true" android:title="Trends" android:id="@+id/graphMenuItem"/>
+    <item android:enabled="true" android:title="@string/recent_menu" android:id="@+id/recentMenuItem"/>
+    <item android:enabled="true" android:title="@string/log_menu" android:id="@+id/weekMenuItem"/>
+    <item android:enabled="true" android:title="@string/stats_menu" android:id="@+id/statMenuItem"/>
+    <item android:enabled="true" android:title="@string/trends_menu" android:id="@+id/graphMenuItem"/>
 
 </menu>

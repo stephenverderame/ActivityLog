@@ -19,6 +19,7 @@ import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashMap;
+import java.util.Locale;
 
 public class GraphView extends View implements View.OnTouchListener {
     private Rect drawArea, totalArea;
@@ -357,9 +358,9 @@ public class GraphView extends View implements View.OnTouchListener {
         else if(dataType.equals(FunctionalSpinnerItem.SPIN_STAT_TL_TIME) || dataType.equals(FunctionalSpinnerItem.SPIN_STAT_MV_TIME))
             return TimeSpan.fromSeconds((long)val);
         else if(dataType.equals(FunctionalSpinnerItem.SPIN_STAT_ACTIVITY_DATE))
-            return new SimpleDateFormat("MM/dd/yy").format(new Date((long)val));
+            return new SimpleDateFormat("MM/dd/yy", Locale.getDefault()).format(new Date((long)val));
         else
-            return String.format("%.1f", val);
+            return String.format(Locale.getDefault(), "%.1f", val);
     }
 
     @Override

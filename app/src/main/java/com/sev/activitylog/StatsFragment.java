@@ -18,6 +18,7 @@ import java.util.Calendar;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.concurrent.TimeUnit;
 
 public class StatsFragment extends DataFragment implements View.OnClickListener {
@@ -51,15 +52,15 @@ public class StatsFragment extends DataFragment implements View.OnClickListener 
                 master.addRideData(r);
             }
         }
-        setText(R.id.stats_distance, String.format("Distance: %.2f %s", master.getDistance() * Settings.metersDistanceConversion(), Settings.distanceUnits()));
-        setText(R.id.stats_activities, "Activities: " + Integer.toString(count));
-        setText(R.id.stats_avg_distance, String.format("Avg Distance: %.2f %s", master.getDistance() * Settings.metersDistanceConversion() / count, Settings.distanceUnits()));
-        setText(R.id.stats_mtime, "Moving Time: " + TimeSpan.fromSeconds(master.getMovingTime()));
-        setText(R.id.stats_ttime, "Total Time: " + TimeSpan.fromSeconds(master.getTotalTime()));
-        setText(R.id.stats_elevation, String.format("Elevation: %.2f %s", master.getClimbed() * Settings.metersElevationConversion(), Settings.elevationUnits()));
-        setText(R.id.stats_speed, String.format("Avg Speed: %.2f %s", master.getAverageSpeed() * Settings.metersDistanceConversion() * 3600, Settings.speedUnits()));
-        setText(R.id.stats_power, String.format("Avg Power: %.2f W", master.getPower()));
-        setText(R.id.stats_calories, String.format("Calories: %.2f kCal", master.getPower() * master.getMovingTime() / 4.184 / 1000 * 4)); //25% efficient at converting cal to work (hence the * 4)
+        setText(R.id.stats_distance, String.format(Locale.getDefault(), "%s: %.2f %s", getString(R.string.distance), master.getDistance() * Settings.metersDistanceConversion(), Settings.distanceUnits()));
+        setText(R.id.stats_activities, getString(R.string.activities) + ": " + Integer.toString(count));
+        setText(R.id.stats_avg_distance, String.format(Locale.getDefault(), "%s: %.2f %s", getString(R.string.avg_distance), master.getDistance() * Settings.metersDistanceConversion() / count, Settings.distanceUnits()));
+        setText(R.id.stats_mtime, getString(R.string.mv_time) + ": " + TimeSpan.fromSeconds(master.getMovingTime()));
+        setText(R.id.stats_ttime, getString(R.string.tt_time) + ": " + TimeSpan.fromSeconds(master.getTotalTime()));
+        setText(R.id.stats_elevation, String.format(Locale.getDefault(), "%s: %.2f %s", getString(R.string.elevation), master.getClimbed() * Settings.metersElevationConversion(), Settings.elevationUnits()));
+        setText(R.id.stats_speed, String.format(Locale.getDefault(), "%s: %.2f %s", getString(R.string.avg_speed), master.getAverageSpeed() * Settings.metersDistanceConversion() * 3600, Settings.speedUnits()));
+        setText(R.id.stats_power, String.format(Locale.getDefault(), "%s: %.2f W", getString(R.string.power), master.getPower()));
+        setText(R.id.stats_calories, String.format(Locale.getDefault(), "%s: %.2f kCal", getString(R.string.calories), master.getPower() * master.getMovingTime() / 4.184 / 1000 * 4)); //25% efficient at converting cal to work (hence the * 4)
         setText(R.id.stats_avg_time, TimeSpan.fromSeconds(master.getMovingTime() / count));
 
         int earliest = data == null ? this.data.size() - 1 : data.get(data.size() - 1);
@@ -68,7 +69,7 @@ public class StatsFragment extends DataFragment implements View.OnClickListener 
         int numWeeks = (int) Math.ceil(totalDays / 7.f);
         Calendar now = Calendar.getInstance();
         now.setTime(new Date()); //sets date to now
-        setText(R.id.stats_week_activities, String.format("Weekly Activities: %.1f", (float)count / numWeeks));
+        setText(R.id.stats_week_activities, String.format(Locale.getDefault(), "%s: %.1f", getString(R.string.week_act), (float)count / numWeeks));
 
     }
     private void setText(int v, String text){

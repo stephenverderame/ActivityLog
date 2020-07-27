@@ -174,7 +174,7 @@ public class ActivityView extends View implements Subject {
         this.w = right - x;
         this.h = bottom - y;
         if(info != null) {
-            gridX = (w - pr - pl) / info[0].length;
+            gridX = (w - pr - pl) / (float)info[0].length;
             Rect bounds = new Rect();
             textPaint.setTextSize(dp2pxFactor * fnt.titleSize);
             Paint.FontMetrics fm = textPaint.getFontMetrics();
@@ -193,7 +193,7 @@ public class ActivityView extends View implements Subject {
     public void setTitle(String title){this.title = title;}
     public void setInfoGrid(int rows, int cols) {
         info = new StringPair[rows][cols];
-        gridX = (w - pr - pl) / cols;
+        gridX = (w - pr - pl) / (float)cols;
         Rect bounds = new Rect();
         textPaint.setTextSize(dp2pxFactor * fnt.titleSize);
         Paint.FontMetrics fm = textPaint.getFontMetrics();

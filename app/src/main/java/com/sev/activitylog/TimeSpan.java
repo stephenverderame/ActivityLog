@@ -1,5 +1,7 @@
 package com.sev.activitylog;
 
+import java.util.Locale;
+
 public class TimeSpan {
     /**
      * Converts an integer amount of seconds to a String in HH:mm:ss format
@@ -16,12 +18,12 @@ public class TimeSpan {
             leftoverTime -= (int)leftoverTime;
             leftoverTime *= 3600;
         }
-        time.append(String.format("%02d", (int)leftoverTime / 60));
+        time.append(String.format(Locale.getDefault(), "%02d", (int)leftoverTime / 60));
         time.append(':');
         leftoverTime /= 60.f;
         leftoverTime -= (int)leftoverTime;
         leftoverTime *= 60;
-        time.append(String.format("%02d", (int)Math.round(leftoverTime)));
+        time.append(String.format(Locale.getDefault(), "%02d", (int)Math.round(leftoverTime)));
         return time.toString();
     }
 }

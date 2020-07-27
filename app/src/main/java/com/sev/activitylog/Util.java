@@ -2,6 +2,7 @@ package com.sev.activitylog;
 
 import java.util.HashMap;
 import java.util.LinkedList;
+import java.util.Locale;
 
 public class Util {
     private static final long BIG_NUM = System.currentTimeMillis();
@@ -75,20 +76,20 @@ public class Util {
         }else if(stat.equals(FunctionalSpinnerItem.SPIN_STAT_ACTIVITY_TYPE)){
             output = fromBase26((long)val);
         }else if(stat.equals(FunctionalSpinnerItem.SPIN_STAT_DISTANCE)){
-            output = String.format("%.2f miles", val * Settings.metersDistanceConversion());
+            output = String.format(Locale.getDefault(), "%.2f %s", val * Settings.metersDistanceConversion(), Settings.distanceUnits());
         }else if(stat.equals(FunctionalSpinnerItem.SPIN_STAT_ELEVATION)){
-            output = String.format("%.2f feet", val * Settings.metersElevationConversion());
+            output = String.format(Locale.getDefault(), "%.2f %s", val * Settings.metersElevationConversion(), Settings.elevationUnits());
         }
         else if(stat.equals(FunctionalSpinnerItem.SPIN_STAT_AVG_SPEED) || stat.equals(FunctionalSpinnerItem.SPIN_STAT_MX_SPEED)){
-            output = String.format("%.2f mph", val * Settings.metersDistanceConversion() * 3600);
+            output = String.format(Locale.getDefault(), "%.2f %s", val * Settings.metersDistanceConversion() * 3600, Settings.speedUnits());
         }
         else if(stat.equals(FunctionalSpinnerItem.SPIN_STAT_POWER)){
-            output = String.format("%.2f W", val);
+            output = String.format(Locale.getDefault(), "%.2f W", val);
         }
         else if(stat.equals(FunctionalSpinnerItem.SPIN_STAT_CALORIES))
-            output = String.format("%.2f kCal", val);
+            output = String.format(Locale.getDefault(), "%.2f kCal", val);
         else
-            output = String.format("%.2f", val);
+            output = String.format(Locale.getDefault(), "%.2f", val);
         return output;
     }
     public static double computeFunction(double[] values, FunctionalSpinnerItem function){

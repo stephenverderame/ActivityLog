@@ -40,6 +40,7 @@ import java.io.Serializable;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.LinkedList;
+import java.util.Locale;
 import java.util.Timer;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
@@ -140,7 +141,7 @@ public class DetailedActivityView extends AppCompatActivity implements Observer 
         ((SeekBar)findViewById(R.id.exertion_meter)).setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
             @Override
             public void onProgressChanged(SeekBar seekBar, int i, boolean b) {
-                ((TextView)findViewById(R.id.exertion_label)).setText("Exertion Level: " + i);
+                ((TextView)findViewById(R.id.exertion_label)).setText(getString(R.string.exertion) + ": " + i);
                 dirtyActivity = true;
                 seekBar.getThumb().setTint(i <= 5 ? Util.rgba(i / 5.f, 1.f, 0, 1) : Util.rgba(1.0f, (10 - i) / 4.f, 0, 1));
                 rideBasics.setExertion(i);
@@ -221,16 +222,16 @@ public class DetailedActivityView extends AppCompatActivity implements Observer 
                 if(rideData != null) {
                     Log.d("Detail View", "Setting view!");
                     view.setTitle(rideBasics.getName());
-                    view.setSubtitle(new SimpleDateFormat("MMM dd yyyy hh:mm a").format(rideBasics.getDate()));
+                    view.setSubtitle(new SimpleDateFormat("MMM dd yyyy hh:mm a", Locale.getDefault()).format(rideBasics.getDate()));
                     view.setInfoGrid(10, 3);
-                    view.setInfo("Distance", String.format("%.2f %s", rideBasics.getDistance() * Settings.metersDistanceConversion(), Settings.distanceUnits()), 0, 0);
-                    view.setInfo("Moving Time", TimeSpan.fromSeconds((long) rideBasics.getMovingTime()), 0, 1);
-                    view.setInfo("Elevation", String.format("%.2f %s", rideBasics.getClimbed() * Settings.metersElevationConversion(), Settings.elevationUnits()), 0, 2);
-                    view.setInfo("Gear", rideData.getGearName(), 1, 0);
-                    view.setInfo("Average Speed", String.format("%.1f %s", rideBasics.getAverageSpeed() * Settings.metersDistanceConversion() * 3600.0, Settings.speedUnits()), 1, 1);
-                    view.setInfo("Average Power", String.format("%.2f W", rideBasics.getPower()), 1, 2);
-                    view.setInfo("Total Time", TimeSpan.fromSeconds((long) rideBasics.getTotalTime()), 2, 0);
-                    view.setInfo("Activity", rideBasics.getActivityType(), 2, 1);
+                    view.setInfo(getString(R.string.distance), String.format(Locale.getDefault(), "%.2f %s", rideBasics.getDistance() * Settings.metersDistanceConversion(), Settings.distanceUnits()), 0, 0);
+                    view.setInfo(getString(R.string.mv_time), TimeSpan.fromSeconds((long) rideBasics.getMovingTime()), 0, 1);
+                    view.setInfo(getString(R.string.elevation), String.format(Locale.getDefault(), "%.2f %s", rideBasics.getClimbed() * Settings.metersElevationConversion(), Settings.elevationUnits()), 0, 2);
+                    view.setInfo(getString(R.string.gear), rideData.getGearName(), 1, 0);
+                    view.setInfo(getString(R.string.avg_speed), String.format(Locale.getDefault(), "%.1f %s", rideBasics.getAverageSpeed() * Settings.metersDistanceConversion() * 3600.0, Settings.speedUnits()), 1, 1);
+                    view.setInfo(getString(R.string.power), String.format(Locale.getDefault(), "%.2f W", rideBasics.getPower()), 1, 2);
+                    view.setInfo(getString(R.string.tt_time), TimeSpan.fromSeconds((long) rideBasics.getTotalTime()), 2, 0);
+                    view.setInfo(getString(R.string.type), rideBasics.getActivityType(), 2, 1);
                     view.setFont(new ActivityViewFontBuilder().labelSize(16).infoSize(12).build());
                     view.invalidate();
                     ArrayList<Pos> route;

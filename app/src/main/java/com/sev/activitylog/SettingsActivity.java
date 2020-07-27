@@ -142,6 +142,7 @@ class Settings {
             editor.putBoolean("log_in", loggedIn);
             editor.putBoolean("imperial", imperial);
             editor.putBoolean("instructions", glInstructions);
+            editor.commit();
         } finally {
             readWriteLock.readLock().unlock();
         }
@@ -177,12 +178,14 @@ class Settings {
         }
         return imp;
     }
+    //Returns the factor by which to multiply the standard distance unit (meters) by to get the user's preferred unit. All measurements from strava are in meters
     public static double metersDistanceConversion() {
         return throw_getInstance().isImperial() ? METERS_MILES_CONVERSION : 1.0 / 1000;
     }
     public static double metersElevationConversion() {
         return throw_getInstance().isImperial() ? METERS_FEET_CONVERSION : 1.0;
     }
+    //Returns the unit string based on the user's measurement system
     public static String speedUnits(){
         return throw_getInstance().isImperial() ? "mph" : "km/h";
     }
@@ -207,6 +210,8 @@ class Settings {
         }
         return set;
     }
+    //If you want to assume that the singleton has already been initialized, you can use this function to get the instance without passing shared preferences
+    //If not initializes, returns a Settings instance with default parameters
     public static Settings try_getInstance(){
         Settings settings;
         try{
@@ -216,6 +221,8 @@ class Settings {
         }
         return settings;
     }
+    //If you want to assume that the singleton has already been initialized, you can use this function to get the instance without passing shared preferences
+    //If not initializes, throws an exception
     public static Settings throw_getInstance(){
         Settings i;
         instanceLock.readLock().lock();

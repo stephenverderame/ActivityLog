@@ -31,4 +31,59 @@
     <string name="fri">Fri</string>
     <string name="sat">Sat</string>
     <string name="sun">Sun</string>
+
+    <string name="recent_menu">Recent</string>
+    <string name="log_menu">Log</string>
+    <string name="stats_menu">Stats</string>
+    <string name="trends_menu">Trends</string>
+    <string name="cal_menu">Calendar</string>
+
+    <string name="rest">Rest</string>
+    <string name="week_title">Week Of </string>
+
+    <string name="loading">Loading...</string>
+    <string name="notes">Notes</string>
+    <string name="exertion">Exertion Level:</string>
+    <string name="note_suggestions">How did you feel? What did you eat? How much water/sleep/nutrition? What do you need to work on?</string>
+    <string name="race">Race:</string>
+    <string name="viewBtn">View in 3D</string>
+    <string name="matched_rides">Matched Activities</string>
+
+    <string name="filter">Filter</string>
+    <string name="advanced">Advanced</string>
+    <string name="from">From</string>
+    <string name="name">Name</string>
+    <string name="to">To</string>
+    <string name="distance">Distance</string>
+    <string name="duration">Duration</string>
+    <string name="gear">Gear</string>
+    <string name="type">Type</string>
+    <string name="avg_speed">Avg Speed</string>
+    <string name="power">Power</string>
+    <string name="elevation">Elevation</string>
+    <string name="time">Time</string>
+    <string name="mv_time">Moving Time</string>
+    <string name="tt_time">Total Time</string>
+    <string name="calories">Calories</string>
+    <string name="avg_distance">Avg Distance</string>
+    <string name="week_act">Week Activities</string>
+    <string name="avg_time">Avg Time</string>
+    <string name="activities">Activities</string>
+
+    <string name="more_stats">More Stats</string>
+    <string name="during_int">During Interval</string>
+    <string name="num_int">Num Intervals</string>
+    <string name="calc">Calculate</string>
+
+    <string name="xaxis">X-Axis</string>
+    <string name="yaxis">Y-Axis</string>
+    <string name="graph">Graph</string>
+    <string name="interval">Interval</string>
+    <string name="amount_of">Amount Of</string>
+    <string name="group_int">Group Interval</string>
+    <string name="show_reg">Show Regression</string>
+    <string name="key">Key</string>
+
+    <string name="settings">Settings</string>
+    <string name="sync">Sync</string>
 </resources>

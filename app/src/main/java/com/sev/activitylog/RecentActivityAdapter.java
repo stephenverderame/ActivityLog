@@ -19,6 +19,7 @@ import androidx.annotation.NonNull;
 import androidx.cardview.widget.CardView;
 import androidx.core.graphics.drawable.DrawableCompat;
 import androidx.core.view.ViewCompat;
+import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
 import java.io.FileNotFoundException;
@@ -31,6 +32,7 @@ import java.util.Calendar;
 import java.util.Date;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Locale;
 import java.util.concurrent.TimeUnit;
 
 import static android.view.View.GONE;
@@ -58,11 +60,11 @@ public class RecentActivityAdapter extends RecyclerView.Adapter<RecentActivityAd
     public void onBindViewHolder(@NonNull CardListViewHolder holder, int position) {
         TextView title = (TextView)holder.cardItemView.findViewById(R.id.cardTitle);
         title.setText(data.get(position).getName());
-        ((TextView)holder.cardItemView.findViewById(R.id.cardDate)).setText(new SimpleDateFormat("MMM dd yyyy hh:mm a").format(data.get(position).getDate()));
+        ((TextView)holder.cardItemView.findViewById(R.id.cardDate)).setText(new SimpleDateFormat("MMM dd yyyy hh:mm a", Locale.getDefault()).format(data.get(position).getDate()));
         ((TextView)holder.cardItemView.findViewById(R.id.cardActivityType)).setText(data.get(position).getActivityType());
 //        ((TextView)holder.cardItemView.findViewById(R.id.cardGear)).setText(data.get(position).getGearId());
-        ((TextView)holder.cardItemView.findViewById(R.id.cardDistance)).setText(String.format("%.2f %s", data.get(position).getDistance() * Settings.metersDistanceConversion(), Settings.distanceUnits()));
-        ((TextView)holder.cardItemView.findViewById(R.id.cardElevation)).setText(String.format("%.2f %s", data.get(position).getClimbed() * Settings.metersElevationConversion(), Settings.elevationUnits()));
+        ((TextView)holder.cardItemView.findViewById(R.id.cardDistance)).setText(String.format(Locale.getDefault(), "%.2f %s", data.get(position).getDistance() * Settings.metersDistanceConversion(), Settings.distanceUnits()));
+        ((TextView)holder.cardItemView.findViewById(R.id.cardElevation)).setText(String.format(Locale.getDefault(), "%.2f %s", data.get(position).getClimbed() * Settings.metersElevationConversion(), Settings.elevationUnits()));
         ((TextView)holder.cardItemView.findViewById(R.id.cardTime)).setText(TimeSpan.fromSeconds((long)data.get(position).getMovingTime()));
 
         holder.cardItemView.setOnClickListener((View v) -> {
@@ -113,6 +115,7 @@ class WeekViewAdapter extends RecyclerView.Adapter<WeekViewAdapter.WeekViewHolde
     private boolean inited;
     private SearchFilters filter;
     private Context ctx;
+    private WeekScrollListener scrollListener;
     public WeekViewAdapter(List<RideOverview> rides, Context ctx){
         weekOverview = new ArrayList<>();
         weekIndexes = new ArrayList<>();
@@ -145,7 +148,7 @@ class WeekViewAdapter extends RecyclerView.Adapter<WeekViewAdapter.WeekViewHolde
             Calendar now = Calendar.getInstance();
             now.setTime(new Date()); //sets dat to now
             latestDayOfWeek = (now.get(Calendar.DAY_OF_WEEK) + 5) % 7; //convert Sunday (1) to Saturday (7) to Monday (0) to Sunday (6)
-            String lastMonth = new SimpleDateFormat("MMM").format(now.getTime());
+            String lastMonth = new SimpleDateFormat("MMM", Locale.getDefault()).format(now.getTime());
             now.setTime(rides.get(rides.size() - 1).getDate());
             firstDayOfWeek = (now.get(Calendar.DAY_OF_WEEK) + 5) % 7;
             for(int i = 0; i < numWeeks; ++i){
@@ -163,7 +166,7 @@ class WeekViewAdapter extends RecyclerView.Adapter<WeekViewAdapter.WeekViewHolde
                 long day = (System.currentTimeMillis() - (latestDayOfWeek * (1000 * 3600 * 24))) - (long)i * 1000 * 3600 * 24 * 7; //epoch time of start date
                 Date startDate = new Date(day);
                 overview.setDate(startDate);
-                overview.setName("Week of " + new SimpleDateFormat("MMM dd yyyy").format(startDate));
+                overview.setName(ctx.getResources().getString(R.string.week_title) + " " + new SimpleDateFormat("MMM dd yyyy", Locale.getDefault()).format(startDate));
                 overview.setPower(overview.getPower() / (indexRange[1] - indexRange[0]));
                 overview.setAvgSpeed(overview.getAverageSpeed() / (indexRange[1] - indexRange[0]));
                 if(filter == null || overview.doesApply(filter)){
@@ -199,7 +202,7 @@ class WeekViewAdapter extends RecyclerView.Adapter<WeekViewAdapter.WeekViewHolde
             View view = holder.days[i];
             if(RideOverview.isSameDay(rides.get(j).getDate(), dayToAdd)){
                 ((TextView)view.findViewById(R.id.dayTime)).setText(TimeSpan.fromSeconds(rides.get(j).getMovingTime()));
-                ((TextView)view.findViewById(R.id.dayDistance)).setText(String.format("%.2f %s", rides.get(j).getDistance() * Settings.metersDistanceConversion(), Settings.distanceUnits()));
+                ((TextView)view.findViewById(R.id.dayDistance)).setText(String.format(Locale.getDefault(), "%.2f %s", rides.get(j).getDistance() * Settings.metersDistanceConversion(), Settings.distanceUnits()));
                 int k = j;
                 ArrayList<RideOverview> duplications = new ArrayList<>();
                 duplications.add(rides.get(j));
@@ -238,15 +241,42 @@ class WeekViewAdapter extends RecyclerView.Adapter<WeekViewAdapter.WeekViewHolde
                     }
                 });
             }else if(rides.get(j).getDate().after(new Date(dayToAdd))){ //more days that rides, added all rides that occured on previous days already and next ride occurs on a day we didn't iterate up to yet. So no activity on this day
-                ((TextView)view.findViewById(R.id.dayDistance)).setText("Rest");
+                ((TextView)view.findViewById(R.id.dayDistance)).setText(ctx.getResources().getString(R.string.rest));
                 ((TextView)view.findViewById(R.id.dayTime)).setText("");
             }
 
 
         }
+        if(range[1] == -1){ //no rides in week
+            for(int i = 0; i < 7; ++i){
+                holder.days[i].setOnClickListener(null);
+                ((TextView)holder.days[i].findViewById(R.id.dayDistance)).setText("");
+                ((TextView)holder.days[i].findViewById(R.id.dayTime)).setText("");
+            }
+        }
         ((TextView)holder.v.findViewById(R.id.weekTime)).setText(TimeSpan.fromSeconds(weekOverview.get(position).getMovingTime()));
-        ((TextView)holder.v.findViewById(R.id.weekDistance)).setText(String.format("%.2f %s", weekOverview.get(position).getDistance() * Settings.metersDistanceConversion(), Settings.distanceUnits()));
-        ((TextView)holder.v.findViewById(R.id.weekElevation)).setText(String.format("%.2f %s", weekOverview.get(position).getClimbed() * Settings.metersElevationConversion(), Settings.elevationUnits()));
+        ((TextView)holder.v.findViewById(R.id.weekDistance)).setText(String.format(Locale.getDefault(), "%.2f %s", weekOverview.get(position).getDistance() * Settings.metersDistanceConversion(), Settings.distanceUnits()));
+        ((TextView)holder.v.findViewById(R.id.weekElevation)).setText(String.format(Locale.getDefault(), "%.2f %s", weekOverview.get(position).getClimbed() * Settings.metersElevationConversion(), Settings.elevationUnits()));
+    }
+    @Override
+    public void onAttachedToRecyclerView(RecyclerView view){
+        super.onAttachedToRecyclerView(view);
+        if(view.getLayoutManager() instanceof LinearLayoutManager){
+            LinearLayoutManager manager = (LinearLayoutManager)view.getLayoutManager();
+            view.addOnScrollListener(new RecyclerView.OnScrollListener() {
+                @Override
+                public void onScrolled(@NonNull RecyclerView recyclerView, int dx, int dy) {
+                    super.onScrolled(recyclerView, dx, dy);
+                    int visiblePos = manager.findFirstVisibleItemPosition();
+                    if(visiblePos > -1){
+                        scrollListener.onWeekScroll(weekOverview.get(visiblePos));
+                    }
+                }
+            });
+        }
+    }
+    public void setWeekScrollListener(WeekScrollListener onScroll){
+        scrollListener = onScroll;
     }
 
     @Override
@@ -320,8 +350,8 @@ class WeekViewAdapter extends RecyclerView.Adapter<WeekViewAdapter.WeekViewHolde
                 row.addView(days[i]);
             }
         }
-        public WeekViewHolder(View view, boolean nonStandard){
-            super(view);
-        }
     }
+}
+interface WeekScrollListener {
+    public void onWeekScroll(RideOverview firstVisibleWeekOverview);
 }

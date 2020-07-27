@@ -39,7 +39,7 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_gravity="center"
-        android:text="How did you feel? What did you eat? How much water/sleep/nutrition? What do you need to work on?"/>
+        android:text=""/>
     <EditText
         android:layout_width="match_parent"
         android:layout_height="match_parent"
@@ -49,7 +49,7 @@
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Exertion Level:"
+            android:text="@string/exertion"
             android:id="@+id/exertion_label"/>
         <SeekBar
             android:layout_width="match_parent"
@@ -59,14 +59,14 @@
         <CheckBox
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:hint="Race"
+            android:hint="@string/race"
             android:id="@+id/race_check"/>
     </LinearLayout>
     <Button
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_gravity="center"
-        android:text="View in 3D"
+        android:text="@string/viewBtn"
         android:textSize="20dp"
         android:id="@+id/viewGLBtn"
         android:background="@drawable/round_rect_shadow" />
@@ -76,7 +76,7 @@
         android:orientation="vertical"
         android:background="@drawable/round_rect_shadow">
         <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
-            android:textSize="24dp" android:textColor="@color/colorPrimary" android:text="Matched Activities"
+            android:textSize="24dp" android:textColor="@color/colorPrimary" android:text="@string/matched_rides"
             android:layout_gravity="center_horizontal"/>
         <fragment android:name="com.sev.activitylog.TrendsFragment"
             android:layout_width="match_parent"

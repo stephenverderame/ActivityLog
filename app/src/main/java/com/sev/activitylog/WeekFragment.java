@@ -5,6 +5,7 @@ import android.os.Parcel;
 import android.os.Parcelable;
 import android.view.ContextThemeWrapper;
 import android.view.LayoutInflater;
+import android.view.SurfaceControl;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.LinearLayout;
@@ -18,12 +19,15 @@ import java.util.List;
 
 public class WeekFragment extends DataFragment {
     private RecyclerView view;
+    private View parent;
     private WeekViewAdapter viewAdapter;
     private boolean finished = false;
     private Parcelable lastState;
     private SearchFilters sf;
+    private MonthFragment month;
     public WeekFragment(List<RideOverview> data, Observer controller){
         super(data, controller);
+        month = new MonthFragment(new Date(System.currentTimeMillis()), data, mediator);
     }
 
     @Override
@@ -32,6 +36,14 @@ public class WeekFragment extends DataFragment {
         viewAdapter = new WeekViewAdapter(data, filter, getContext(), mediator);
         viewAdapter.init();
         view.setAdapter(viewAdapter); //when the view is updated. OnCreateView is called again
+        viewAdapter.setWeekScrollListener(new WeekScrollListener() {
+            @Override
+            public void onWeekScroll(RideOverview firstVisibleWeekOverview) {
+                month.setData(null, firstVisibleWeekOverview.getDate());
+            }
+        });
+        month.notifyDataChanged();
+//        getChildFragmentManager().beginTransaction().replace(R.id.monthFragContainer, month).commit();
     }
 
     @Override
@@ -80,13 +92,25 @@ public class WeekFragment extends DataFragment {
 
     public View onCreateView(LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
         if(view == null) {
-            view = new RecyclerView(getContext());
+            view = new RecyclerView(new ContextThemeWrapper(getContext(), R.style.ScrollbarRecyclerView));
             view.setLayoutManager(new LinearLayoutManager(getContext()));
+//            view.setNestedScrollingEnabled(false);
+        }else {
+            ((LinearLayout) parent.findViewById(R.id.weekViewContainer)).removeView(view);
+//            getChildFragmentManager().beginTransaction().remove(month).commit();
         }
+        parent = inflater.inflate(R.layout.week_container, null);
+        ((LinearLayout)parent.findViewById(R.id.weekViewContainer)).addView(view);
         if(viewAdapter == null) {
             viewAdapter = sf == null ? new WeekViewAdapter(data, getContext()) : new WeekViewAdapter(data, sf, getContext());
             if(data.size() > 1) viewAdapter.init();
             viewAdapter.attach(mediator);
+            viewAdapter.setWeekScrollListener(new WeekScrollListener() {
+                @Override
+                public void onWeekScroll(RideOverview firstVisibleWeekOverview) {
+                    month.setData(null, firstVisibleWeekOverview.getDate());
+                }
+            });
         }
         if(finished || lastState != null) viewAdapter.init();
         view.setAdapter(viewAdapter);
@@ -94,7 +118,8 @@ public class WeekFragment extends DataFragment {
             view.getLayoutManager().onRestoreInstanceState(lastState);
             lastState = null;
         }
-        return view;
+        getChildFragmentManager().beginTransaction().replace(R.id.monthFragContainer, month).commit();
+        return parent;
     }
 }
 class WeekMemento implements Parcelable {
