@@ -16,7 +16,7 @@
     <string name="login_msg">Connect to strava to sync your activities and data to the app!</string>
 
     <string name="sync_title">Sync?</string>
-    <string name="sync_msg">Do you want to sync new data from strava? Please avoid doing this in order to avoid remote query limits.</string>
+    <string name="sync_msg">Do you want to sync new data from strava? If so, please choose the earliest date to fetch data from. Please avoid doing this in order to avoid remote query limits.</string>
 
     <string name="filter_confirmation">Data Filtered! Press "Graph" to view updates</string>
     <string name="logout_confirmation">You have successfully logged out</string>
@@ -86,4 +86,6 @@
 
     <string name="settings">Settings</string>
     <string name="sync">Sync</string>
+
+    <string name="update">Refresh</string>
 </resources>

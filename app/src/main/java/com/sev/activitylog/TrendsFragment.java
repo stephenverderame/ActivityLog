@@ -79,7 +79,7 @@ public class TrendsFragment extends DataFragment implements View.OnClickListener
 
     @Override
     public void notifyDataFinish() {
-        if(dataSet == null) {
+        if(dataSet == null || graph == null) {
             dataSet = new ArrayList<>();
             double minSpeed = 100, maxSpeed = 0;
             dataSet.add(new ArrayList<Tuple<Double, Double>>());
@@ -94,7 +94,7 @@ public class TrendsFragment extends DataFragment implements View.OnClickListener
 
             dataMinY = minSpeed;
             dataMaxY = maxSpeed;
-            if (graph != null) {
+            if (graph != null && data != null) {
                 graph.setData(dataSet.get(0), 0);
                 graph.setScale(new GraphScale(data.get(0).getDate().getTime(), data.get(data.size() - 1).getDate().getTime(), (float) maxSpeed, (float) minSpeed));
                 graph.setStyle(new GraphStyleBuilder().colors(Color.CYAN).strokes(2).x("Rides").y("Speed").title("Speed vs Time").grid(true).type(GraphStyle.GraphType.TYPE_LINE).build());

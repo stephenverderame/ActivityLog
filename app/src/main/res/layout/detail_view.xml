@@ -13,7 +13,12 @@
     android:orientation="vertical"
     android:layout_marginTop="5dp"
     tools:context=".DetailedActivityView">
-
+    <Button android:id="@+id/updateBtn"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:background="#FFFFFF"
+        android:textColor="@color/colorPrimary"
+        android:text="@string/update"/>
     <com.sev.activitylog.ActivityView
         android:id="@+id/detailView"
         android:layout_width="match_parent"

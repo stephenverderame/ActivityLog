@@ -1,5 +1,6 @@
 package com.sev.activitylog;
 
+import android.app.Activity;
 import android.app.DatePickerDialog;
 import android.app.TimePickerDialog;
 import android.content.Context;
@@ -10,6 +11,7 @@ import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.inputmethod.InputMethodManager;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.DatePicker;
@@ -88,6 +90,7 @@ public class FilterFragment extends Fragment implements View.OnClickListener, Vi
                 advancedButton.setText(isShowingAdvanced ? "Advanced" : "Hide");
                 view.findViewById(R.id.advanced_filters_container).setVisibility(isShowingAdvanced ? View.GONE : View.VISIBLE);
                 isShowingAdvanced = !isShowingAdvanced;
+                if(!isShowingAdvanced) hideKeyboard();
                 if(isShowingAdvanced && gearList != null && gearList.isDone()){
                     try {
                         setGearList(gearList.get());
@@ -98,6 +101,7 @@ public class FilterFragment extends Fragment implements View.OnClickListener, Vi
                 break;
             case R.id.search_filter_btn:
             {
+                hideKeyboard();
                 FilterBuilder builder = new FilterBuilder();
                 EditText entry = (EditText)view.findViewById(R.id.filter_search);
                 if(entry.getText().toString().length() >= 1) builder.name(entry.getText().toString());
@@ -180,6 +184,10 @@ public class FilterFragment extends Fragment implements View.OnClickListener, Vi
             }, 2020, 1, 1);
             dialog.show();
         }
+    }
+    private void hideKeyboard(){
+        InputMethodManager imm = (InputMethodManager) getContext().getSystemService(Activity.INPUT_METHOD_SERVICE);
+        imm.hideSoftInputFromWindow(view.getWindowToken(), 0);
     }
     private int kkmmToInt(String formattedTime){
         int hours = Integer.parseInt(formattedTime.substring(0, formattedTime.indexOf(':')));

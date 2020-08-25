@@ -121,6 +121,19 @@ public class DetailedActivityView extends AppCompatActivity implements Observer 
                 }
             }
         });
+        findViewById(R.id.updateBtn).setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                if(token == null)
+                    token = new AuthToken(getSharedPreferences(AuthToken.PREFERENCES_ID, MODE_PRIVATE));
+                Log.d("Detail", "Doing authentication!");
+                auth = new OAuth(token);
+                auth.attach(DetailedActivityView.this);
+                new Thread(auth).start();
+                shouldSave = true;
+                dirtyActivity = true;
+            }
+        });
         dirtyNotes = false;
         dirtyActivity = false;
         Toolbar actionBar = (Toolbar)findViewById(R.id.detailToolbar);
@@ -220,6 +233,8 @@ public class DetailedActivityView extends AppCompatActivity implements Observer 
                 ActivityView view = (ActivityView)findViewById(R.id.detailView);
                 rideData = (DetailedRide)e.getEventArgs()[0];
                 if(rideData != null) {
+                    if(rideData.getOverview() != null)
+                        rideBasics = rideData.getOverview();
                     Log.d("Detail View", "Setting view!");
                     view.setTitle(rideBasics.getName());
                     view.setSubtitle(new SimpleDateFormat("MMM dd yyyy hh:mm a", Locale.getDefault()).format(rideBasics.getDate()));
@@ -258,6 +273,7 @@ public class DetailedActivityView extends AppCompatActivity implements Observer 
                 }
                 notesFilename = (rideBasics.getId()) + "_notes.txt";
                 openNotes(notesFilename);
+                view.invalidate();
                 break;
             }
             case URI_NOTIFY:

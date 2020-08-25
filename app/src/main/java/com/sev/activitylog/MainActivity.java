@@ -8,6 +8,7 @@ import androidx.fragment.app.FragmentTransaction;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
+import android.app.DatePickerDialog;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.os.Bundle;
@@ -17,12 +18,14 @@ import android.os.Parcelable;
 import android.util.Log;
 import android.view.MenuItem;
 import android.view.SurfaceControl;
+import android.widget.DatePicker;
 import android.widget.LinearLayout;
 import android.widget.Toast;
 
 import com.google.android.material.bottomnavigation.BottomNavigationView;
 
 import java.util.ArrayList;
+import java.util.Calendar;
 import java.util.Date;
 import java.util.LinkedList;
 import java.util.List;
@@ -61,6 +64,8 @@ public class MainActivity extends AppCompatActivity implements Observer, Navigat
     private DataFragment[] fragments;
 
     private Settings settings;
+
+    private boolean shouldCheckForDuplicates = false;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -169,7 +174,19 @@ public class MainActivity extends AppCompatActivity implements Observer, Navigat
                     new AlertDialog.Builder(MainActivity.this).setMessage(R.string.sync_msg).setTitle(R.string.sync_title).setPositiveButton(R.string.yes, new DialogInterface.OnClickListener() {
                         @Override
                         public void onClick(DialogInterface dialogInterface, int i) {
-                            loadFromRemote(RemoteQuery.RIDE_QUERY & RemoteQuery.GEAR_QUERY, lastSync);
+                            Calendar cal = Calendar.getInstance();
+                            cal.setTime(new Date(lastSync));
+                            new DatePickerDialog(MainActivity.this, new DatePickerDialog.OnDateSetListener() {
+                                @Override
+                                public void onDateSet(DatePicker datePicker, int year, int month, int day) {
+                                    Calendar c = Calendar.getInstance();
+                                    c.set(Calendar.YEAR, year);
+                                    c.set(Calendar.MONTH, month);
+                                    c.set(Calendar.DAY_OF_MONTH, day);
+                                    shouldCheckForDuplicates = true;
+                                    loadFromRemote(RemoteQuery.RIDE_QUERY | RemoteQuery.GEAR_QUERY, c.getTimeInMillis());
+                                }
+                            }, cal.get(Calendar.YEAR), cal.get(Calendar.MONTH), cal.get(Calendar.DAY_OF_MONTH)).show();
                         }
                     }).setNegativeButton(R.string.cancel, null).show();
                     return true;
@@ -197,6 +214,7 @@ public class MainActivity extends AppCompatActivity implements Observer, Navigat
                 startActivity((Intent) e.getEventArgs()[0]);
                 break;
             case RIDES_LOAD_NOTIFY: { //flagged by both storage and remote models. So this code can be run multiple times if the local storage is out of date
+                shouldCheckForDuplicates = false;
                 if(e.getEventArgs()[0] != null)
                     lastSync = (long) e.getEventArgs()[0];
                 if(System.currentTimeMillis() - lastSync > 1000 * 3600 * 24){ //data outdated, get new data from remote server
@@ -233,13 +251,26 @@ public class MainActivity extends AppCompatActivity implements Observer, Navigat
                 if(e.getEventArgs()[0] != null){
                     LinkedList<RideOverview> newRides = (LinkedList<RideOverview>)e.getEventArgs()[0];
                     boolean insert = (boolean)e.getEventArgs()[1];
-                    if(insert) {
-                        rideList.addAll(0, newRides);
-                        ((DataFragment)getSupportFragmentManager().findFragmentById(R.id.main_fragment_container)).notifyDataInsertion(0, newRides.size());
+                    if(shouldCheckForDuplicates && rideList != null){
+                        for(int it = 0; it < newRides.size(); ){
+                            int i = 0;
+                            i = RideOverview.indexOf(rideList, newRides.get(it).getDate());
+                            if(newRides.get(it).getId() == rideList.get(i).getId()){
+                                    newRides.remove(it);
+                            } else {
+                                rideList.add(i, newRides.get(it++));
+                            }
+                        }
                     }
                     else{
-                        rideList.addAll(newRides);
-                        ((DataFragment)getSupportFragmentManager().findFragmentById(R.id.main_fragment_container)).notifyDataInsertion(rideList.size() - newRides.size(), newRides.size());
+                        if(insert) {
+                            rideList.addAll(0, newRides);
+                            ((DataFragment)getSupportFragmentManager().findFragmentById(R.id.main_fragment_container)).notifyDataInsertion(0, newRides.size());
+                        }
+                        else{
+                            rideList.addAll(newRides);
+                            ((DataFragment)getSupportFragmentManager().findFragmentById(R.id.main_fragment_container)).notifyDataInsertion(rideList.size() - newRides.size(), newRides.size());
+                        }
                     }
                 }
                 break;
@@ -285,6 +316,7 @@ public class MainActivity extends AppCompatActivity implements Observer, Navigat
                 RideOverview editedRide = (RideOverview)args[0];
                 int i = RideOverview.indexOfExact(rideList, editedRide.getDate());
                 if(i != -1) rideList.set(i, editedRide);
+                storage.saveRides(rideList, lastSync);
             }
             mainIntent.putExtra("ride_list", rideList);
             mainIntent.putExtra("recent_state", (Parcelable)dstState[1]);

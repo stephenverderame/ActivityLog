@@ -186,6 +186,7 @@ public class RideOverview extends RideStats implements Serializable {
      * @return
      */
     public static int indexOfExact(List<RideOverview> rides, Date d){
+        if(rides.size() == 0) return -1;
         int index, start = 0, end = rides.size() - 1;
         if(rides.get(start).date.before(rides.get(end).date)) throw new IllegalStateException("list should be ordered most recent to least recent");
         do{

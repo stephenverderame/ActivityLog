@@ -48,6 +48,7 @@ public class StravaModel extends RideModel {
  //                   LinkedList<RideOverview> rideOverviews = new LinkedList<RideOverview>();
                     int pageNum = 1;
                     int retries = 0;
+                    long latestDate = startDate;
                     do {
                         try {
                             LinkedList<RideOverview> buffer = new LinkedList<RideOverview>();
@@ -80,6 +81,7 @@ public class StravaModel extends RideModel {
                                         if(startDate != 0 ) buffer.push(r);
                                         else buffer.add(r);
  //                                       rideOverviews.add(r);
+                                        latestDate = latestDate > r.getDate().getTime() ? latestDate : r.getDate().getTime();
                                     }
                                     if(ridesJson.length() == 0) success = false; //if no more rides
                                     else {

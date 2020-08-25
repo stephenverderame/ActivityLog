@@ -196,11 +196,13 @@ public class GraphView extends View implements View.OnTouchListener {
         this.style = style;
     }
     public void setData(ArrayList<Tuple<Double, Double>> dataPoints, int lineNum){
-        if(lineNum < data.size())
-            data.set(lineNum, sort(dataPoints, 0, dataPoints.size() - 1));
-        else
-            data.add(lineNum, sort(dataPoints, 0, dataPoints.size() - 1));
-        graphDirty = true;
+        if(dataPoints.size() >= 1) {
+            if (lineNum < data.size())
+                data.set(lineNum, sort(dataPoints, 0, dataPoints.size() - 1));
+            else
+                data.add(lineNum, sort(dataPoints, 0, dataPoints.size() - 1));
+            graphDirty = true;
+        }
     }
     public void clearData() {
         data = new ArrayList<>();
@@ -365,6 +367,7 @@ public class GraphView extends View implements View.OnTouchListener {
 
     @Override
     public boolean onTouch(View view, MotionEvent motionEvent) {
+        if(scale == null) return false;
         switch(motionEvent.getActionMasked()){
             case MotionEvent.ACTION_MOVE:
             {

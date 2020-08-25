@@ -152,10 +152,9 @@ class WeekViewAdapter extends RecyclerView.Adapter<WeekViewAdapter.WeekViewHolde
             now.setTime(rides.get(rides.size() - 1).getDate());
             firstDayOfWeek = (now.get(Calendar.DAY_OF_WEEK) + 5) % 7;
             for(int i = 0; i < numWeeks; ++i){
-                ArrayList<Integer> indices = getActivityWeek(i);
-                int[] indexRange = indices.size() >= 1 ? new int[] {indices.get(0), indices.get(indices.size() - 1)} : new int[]{0, -1};
+                int[] indexRange = getActivityWeek(i);
                 RideOverview overview = new RideOverview();
-                for(int k = indexRange[0]; k < indexRange[1]; ++k){
+                for(int k = indexRange[0]; k <= indexRange[1]; ++k){
                     overview.setDistance(overview.getDistance() + rides.get(k).getDistance());
                     overview.setMovingTime(overview.getMovingTime() + rides.get(k).getMovingTime());
                     overview.setTotalTime(overview.getTotalTime() + rides.get(k).getTotalTime());
@@ -288,10 +287,10 @@ class WeekViewAdapter extends RecyclerView.Adapter<WeekViewAdapter.WeekViewHolde
      * Gets all the activities that occurred in the week relative to today. Returns indexes to be used to index the rideList list
      * Binary searches through rideList based on date
      * @param weekFromToday 0 indexed number identifying the week from today to fetch
-     * @return list of activity indexes ordered most recent to earlier (Sun to Mon)
+     * @return range of activity indexes ordered most recent to earlier (Sun to Mon). Both values are inclusive
      */
-    private ArrayList<Integer> getActivityWeek(int weekFromToday){
-        ArrayList<Integer> weekRides = new ArrayList<>();
+    private int[] getActivityWeek(int weekFromToday){
+        int[] weekRange = new int[]{0, -1};
         //makes sure startDate is always a monday and endDate is always a sunday to align weeks
         Date endDate = new Date((System.currentTimeMillis() + (6 - latestDayOfWeek) * (long)(1000 * 3600 * 24)) - (long)weekFromToday * 1000 * 3600 * 24 * 7); //first term casts to long bc of System.currentTimeMillis(), second term of subtraction does not implicitly
         Date startDate = new Date((System.currentTimeMillis() - (latestDayOfWeek * (long)(1000 * 3600 * 24))) - (long)weekFromToday * 1000 * 3600 * 24 * 7);
@@ -307,11 +306,14 @@ class WeekViewAdapter extends RecyclerView.Adapter<WeekViewAdapter.WeekViewHolde
             else if(id >= end) id = end;
             if((rides.get(id).getDate().after(startDate) || RideOverview.isSameDay(rides.get(id).getDate(), startDate)) &&
                     (rides.get(id).getDate().before(endDate) || RideOverview.isSameDay(rides.get(id).getDate(), endDate))){
-                for(int i = Math.max(0, id - 7); i < Math.min(rides.size(), id + 8); ++i){
-                    if((rides.get(i).getDate().after(startDate) || RideOverview.isSameDay(startDate, rides.get(i).getDate())) &&
-                            (rides.get(i).getDate().before(endDate) || RideOverview.isSameDay(rides.get(i).getDate(), endDate))){
-                        weekRides.add(i);
-                    }
+                weekRange = new int[]{id, id};
+                int index = id + 1;
+                while(index < rides.size() && (rides.get(index).getDate().after(startDate) || RideOverview.isSameDay(rides.get(index).getDate(), startDate))){
+                    weekRange[1] = index++;
+                }
+                index = id - 1;
+                while(index >= 0 && (rides.get(index).getDate().before(endDate) || RideOverview.isSameDay(rides.get(index).getDate(), endDate))){
+                    weekRange[0] = index--;
                 }
                 break;
             }
@@ -321,7 +323,7 @@ class WeekViewAdapter extends RecyclerView.Adapter<WeekViewAdapter.WeekViewHolde
                 start = id + 1;
             }
         } while(start <= end && start < rides.size() && end < rides.size());
-        return weekRides;
+        return weekRange;
     }
 
     @Override
